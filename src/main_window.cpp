@@ -2,12 +2,8 @@
 #include "job_options.h"
 #include "job_widget.h"
 #include "list_of_job_options.h"
-#include "mount_dialog.h"
-#include "mount_widget.h"
 #include "preferences_dialog.h"
 #include "remote_widget.h"
-#include "scheduler_widget.h"
-#include "stream_widget.h"
 #include "transfer_dialog.h"
 #include "utils.h"
 #ifdef Q_OS_MACOS
@@ -468,17 +464,9 @@ MainWindow::MainWindow() {
       int widgetsCount = ui.jobs->count();
       for (int i = widgetsCount - 2; i >= 0; i = i - 2) {
         QWidget *widget = ui.jobs->itemAt(i)->widget();
-        if (auto mount = qobject_cast<MountWidget *>(widget)) {
-          if (!(mount->isRunning)) {
-            emit mount->closed();
-          }
-        } else if (auto transfer = qobject_cast<JobWidget *>(widget)) {
+        if (auto transfer = qobject_cast<JobWidget *>(widget)) {
           if (!(transfer->isRunning)) {
             emit transfer->closed();
-          }
-        } else if (auto stream = qobject_cast<StreamWidget *>(widget)) {
-          if (!(stream->isRunning)) {
-            emit stream->closed();
           }
         }
       }
@@ -715,28 +703,11 @@ void MainWindow::quitApp(void) {
   // loop over all jobs and clean them
   for (int i = widgetsCount - 2; i >= 0; i = i - 2) {
     QWidget *widget = ui.jobs->itemAt(i)->widget();
-    if (auto mount = qobject_cast<MountWidget *>(widget)) {
-      if (mount->isRunning) {
-        processActive = true;
-        if (mount->getUnmountingError() != "0") {
-          // there is failed unmount - quitting fails
-          // but loop continues closing what possible
-          unmountingFailed = true;
-        }
-      } else {
-        emit mount->closed();
-      }
-    } else if (auto transfer = qobject_cast<JobWidget *>(widget)) {
+    if (auto transfer = qobject_cast<JobWidget *>(widget)) {
       if (transfer->isRunning) {
         processActive = true;
       } else {
         emit transfer->closed();
-      }
-    } else if (auto stream = qobject_cast<StreamWidget *>(widget)) {
-      if (stream->isRunning) {
-        processActive = true;
-      } else {
-        emit stream->closed();
       }
     }
   };
@@ -1371,24 +1342,11 @@ bool MainWindow::canClose() {
     int widgetsCount = ui.jobs->count();
     for (int i = widgetsCount - 2; i >= 0; i = i - 2) {
       QWidget *widget = ui.jobs->itemAt(i)->widget();
-      if (auto mount = qobject_cast<MountWidget *>(widget)) {
-        if (mount->isRunning) {
-          emit mount->cancel();
-        } else {
-          emit mount->closed();
-        }
-
-      } else if (auto transfer = qobject_cast<JobWidget *>(widget)) {
+      if (auto transfer = qobject_cast<JobWidget *>(widget)) {
         if (transfer->isRunning) {
           emit transfer->cancel();
         } else {
           emit transfer->closed();
-        }
-      } else if (auto stream = qobject_cast<StreamWidget *>(widget)) {
-        if (stream->isRunning) {
-          emit stream->cancel();
-        } else {
-          emit stream->closed();
         }
       }
     }
@@ -1666,14 +1624,6 @@ void MainWindow::sortJobs() {
       if (auto transfer = qobject_cast<JobWidget *>(widget)) {
         widgetStartDateTime = transfer->getStartDateTime();
         widgetStatus = transfer->getStatus();
-
-      } else if (auto mount = qobject_cast<MountWidget *>(widget)) {
-        widgetStartDateTime = mount->getStartDateTime();
-        widgetStatus = mount->getStatus();
-
-      } else if (auto stream = qobject_cast<StreamWidget *>(widget)) {
-        widgetStartDateTime = stream->getStartDateTime();
-        widgetStatus = stream->getStatus();
       }
 
       if (mJobsSort == "byDate") {
@@ -1726,16 +1676,6 @@ void MainWindow::sortJobs() {
       ui.jobs->removeWidget(transfer);
       ui.jobs->removeWidget(line);
       ui.jobs->insertWidget(i * 2, transfer);
-      ui.jobs->insertWidget(i * 2 + 1, line);
-    } else if (auto mount = qobject_cast<MountWidget *>(widget)) {
-      ui.jobs->removeWidget(mount);
-      ui.jobs->removeWidget(line);
-      ui.jobs->insertWidget(i * 2, mount);
-      ui.jobs->insertWidget(i * 2 + 1, line);
-    } else if (auto stream = qobject_cast<StreamWidget *>(widget)) {
-      ui.jobs->removeWidget(stream);
-      ui.jobs->removeWidget(line);
-      ui.jobs->insertWidget(i * 2, stream);
       ui.jobs->insertWidget(i * 2 + 1, line);
     } else {
       //
