@@ -14,6 +14,111 @@
 #endif
 #include "file_dialog.h"
 
+namespace {
+// ARMGDDN Browser: remote-folder grouping.
+//
+// Folders are defined in the ini under a [RemoteFolders] group as
+//   FolderName=pattern
+// where pattern uses '*' as a wildcard, e.g.
+//   Titles=TO-*     (remotes whose name starts with "TO-")
+//   HD=*hd*         (remotes whose name contains "hd")
+//   4K=*4k          (remotes whose name ends with "4k")
+// Matching remotes are shown grouped under a collapsible folder header. This
+// only changes how the browser displays remotes - the rclone config is never
+// touched.
+constexpr int kItemKindRole = Qt::UserRole + 1;   // "folder" for headers
+constexpr int kFolderNameRole = Qt::UserRole + 2; // owning folder (members)
+constexpr int kCollapsedRole = Qt::UserRole + 3;  // bool (folder headers)
+constexpr int kFolderCountRole = Qt::UserRole + 4; // member count (headers)
+
+bool isFolderHeader(const QListWidgetItem *item) {
+  return item && item->data(kItemKindRole).toString() == "folder";
+}
+
+void updateFolderHeaderText(QListWidgetItem *header) {
+  QString name = header->data(Qt::UserRole).toString();
+  int count = header->data(kFolderCountRole).toInt();
+  bool collapsed = header->data(kCollapsedRole).toBool();
+  header->setText(
+      QString("%1  %2  (%3)")
+          .arg(collapsed ? QStringLiteral("▸") : QStringLiteral("▾"))
+          .arg(name)
+          .arg(count));
+}
+
+void groupRemotesIntoFolders(QListWidget *remotes, const QString &img_add) {
+  auto settings = GetSettings();
+  settings->beginGroup("RemoteFolders");
+  const QStringList folderNames = settings->childKeys();
+  QList<QPair<QString, QString>> folders; // name -> wildcard pattern
+  for (const QString &fname : folderNames) {
+    QString pattern = settings->value(fname).toString().trimmed();
+    if (!pattern.isEmpty()) {
+      folders.append({fname, pattern});
+    }
+  }
+  settings->endGroup();
+
+  if (folders.isEmpty()) {
+    return;
+  }
+
+  QIcon folderIcon(":media/images/qbutton_icons/folder" + img_add + ".png");
+
+  // snapshot the current flat list of remote items
+  QList<QListWidgetItem *> allItems;
+  while (remotes->count() > 0) {
+    allItems.append(remotes->takeItem(0));
+  }
+  QVector<bool> claimed(allItems.size(), false);
+
+  for (const auto &folder : folders) {
+    QRegularExpression re(
+        QRegularExpression::wildcardToRegularExpression(folder.second),
+        QRegularExpression::CaseInsensitiveOption);
+
+    QList<QListWidgetItem *> members;
+    for (int i = 0; i < allItems.size(); ++i) {
+      if (claimed[i]) {
+        continue;
+      }
+      if (re.match(allItems[i]->text()).hasMatch()) {
+        claimed[i] = true;
+        members.append(allItems[i]);
+      }
+    }
+    if (members.isEmpty()) {
+      continue;
+    }
+
+    QListWidgetItem *header = new QListWidgetItem(folderIcon, folder.first);
+    header->setData(Qt::UserRole, folder.first);
+    header->setData(kItemKindRole, "folder");
+    header->setData(kCollapsedRole, false);
+    header->setData(kFolderCountRole, members.size());
+    QFont f = header->font();
+    f.setBold(true);
+    header->setFont(f);
+    // clickable (to expand/collapse) but not selectable/openable
+    header->setFlags(Qt::ItemIsEnabled);
+    updateFolderHeaderText(header);
+    remotes->addItem(header);
+
+    for (QListWidgetItem *m : members) {
+      m->setData(kFolderNameRole, folder.first);
+      remotes->addItem(m);
+    }
+  }
+
+  // remotes that did not match any folder are listed as before
+  for (int i = 0; i < allItems.size(); ++i) {
+    if (!claimed[i]) {
+      remotes->addItem(allItems[i]);
+    }
+  }
+}
+} // namespace
+
 MainWindow::MainWindow() {
 
   ui.setupUi(this);
@@ -412,6 +517,24 @@ MainWindow::MainWindow() {
 
   QObject::connect(ui.remotes, &QListWidget::itemActivated, ui.open,
                    &QPushButton::clicked);
+
+  // ARMGDDN Browser: clicking a remote-folder header expands/collapses it
+  QObject::connect(
+      ui.remotes, &QListWidget::itemClicked, this, [=](QListWidgetItem *item) {
+        if (!isFolderHeader(item)) {
+          return;
+        }
+        bool collapsed = !item->data(kCollapsedRole).toBool();
+        item->setData(kCollapsedRole, collapsed);
+        updateFolderHeaderText(item);
+        QString folderName = item->data(Qt::UserRole).toString();
+        for (int i = 0; i < ui.remotes->count(); ++i) {
+          QListWidgetItem *it = ui.remotes->item(i);
+          if (it->data(kFolderNameRole).toString() == folderName) {
+            it->setHidden(collapsed);
+          }
+        }
+      });
 
   QObject::connect(ui.refresh, &QPushButton::clicked, this,
                    &MainWindow::rcloneListRemotes);
@@ -1260,6 +1383,10 @@ void MainWindow::rcloneListRemotes() {
             item->setToolTip(tooltip);
             ui.remotes->addItem(item);
           }
+
+          // ARMGDDN Browser: group remotes into ini-defined folders
+          QString folderImgAdd = (iconsColour == "white") ? "_inv" : "";
+          groupRemotesIntoFolders(ui.remotes, folderImgAdd);
         } else {
           if (p->error() != QProcess::FailedToStart) {
             if (getConfigPassword(p)) {
