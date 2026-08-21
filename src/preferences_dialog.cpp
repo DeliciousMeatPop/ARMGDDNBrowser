@@ -58,50 +58,7 @@ PreferencesDialog::PreferencesDialog(QWidget *parent) : QDialog(parent) {
   resize(0, 0);
   setMaximumHeight(this->height());
 
-  ui.rclone->setFocus(Qt::FocusReason::OtherFocusReason);
-
-  QObject::connect(ui.rcloneBrowse, &QPushButton::clicked, this, [=]() {
-    QString rclone = QFileDialog::getOpenFileName(
-        this, "Select rclone executable", ui.rclone->text());
-    if (rclone.isEmpty()) {
-      return;
-    }
-
-    if (!QFileInfo(rclone).isExecutable()) {
-      QMessageBox::critical(
-          this, "Error",
-          QString("File\n\n %1\n\n is not executable.").arg(rclone));
-      return;
-    }
-
-    if (QFileInfo(rclone) == QFileInfo(qApp->applicationFilePath())) {
-      QMessageBox::critical(this, "Error",
-                            "You selected Rclone Browser executable!\nPlease "
-                            "select rclone executable instead.");
-      return;
-    }
-
-    ui.rclone->setText(rclone);
-  });
-
-  QObject::connect(ui.rcloneConfBrowse, &QPushButton::clicked, this, [=]() {
-    QString rcloneConf = QFileDialog::getOpenFileName(
-        this, "Select .rclone.conf location", ui.rcloneConf->text());
-    if (rcloneConf.isEmpty()) {
-      return;
-    }
-
-    ui.rcloneConf->setText(rcloneConf);
-  });
-
-  QObject::connect(ui.streamBrowse, &QPushButton::clicked, this, [=]() {
-    QString stream = QFileDialog::getOpenFileName(
-        this, "Select player for streaming", ui.stream->text());
-    if (stream.isEmpty()) {
-      return;
-    }
-    ui.stream->setText("\"" + stream + "\"" + " -");
-  });
+  ui.defaultDownloadDir->setFocus(Qt::FocusReason::OtherFocusReason);
 
   QObject::connect(
       ui.defaultDownloadDirBrowse, &QPushButton::clicked, this, [=]() {
@@ -116,96 +73,6 @@ PreferencesDialog::PreferencesDialog(QWidget *parent) : QDialog(parent) {
         ui.defaultDownloadDir->setText(defaultDownloadDir);
       });
 
-  QObject::connect(
-      ui.defaultUploadDirBrowse, &QPushButton::clicked, this, [=]() {
-        QString defaultUploadDir = QFileDialog::getExistingDirectory(
-            this, "Select default upload directory",
-            ui.defaultUploadDir->text());
-
-        if (defaultUploadDir.isEmpty()) {
-          return;
-        }
-
-        ui.defaultUploadDir->setText(defaultUploadDir);
-      });
-
-  QObject::connect(ui.queueScriptBrowse, &QPushButton::clicked, this, [=]() {
-    QString queueScript = QFileDialog::getOpenFileName(this, "Select script",
-                                                       ui.queueScript->text());
-    if (queueScript.isEmpty()) {
-      return;
-    }
-
-    if (!QFileInfo(queueScript).isExecutable()) {
-      QMessageBox::critical(
-          this, "Error",
-          QString("File\n\n %1\n\n is not executable.").arg(queueScript));
-      return;
-    }
-
-    if (QFileInfo(queueScript) == QFileInfo(qApp->applicationFilePath())) {
-      QMessageBox::critical(this, "Error",
-                            "You selected RcloneBrowser executable!\nPlease "
-                            "select your script executable instead.");
-      return;
-    }
-
-    ui.queueScript->setText("\"" + queueScript + "\"");
-  });
-
-  QObject::connect(
-      ui.transferOnScriptBrowse, &QPushButton::clicked, this, [=]() {
-        QString transferOnScript = QFileDialog::getOpenFileName(
-            this, "Select script", ui.transferOnScript->text());
-        if (transferOnScript.isEmpty()) {
-          return;
-        }
-
-        if (!QFileInfo(transferOnScript).isExecutable()) {
-          QMessageBox::critical(this, "Error",
-                                QString("File\n\n %1\n\n is not executable.")
-                                    .arg(transferOnScript));
-          return;
-        }
-
-        if (QFileInfo(transferOnScript) ==
-            QFileInfo(qApp->applicationFilePath())) {
-          QMessageBox::critical(
-              this, "Error",
-              "You selected RcloneBrowser executable!\nPlease "
-              "select your script executable instead.");
-          return;
-        }
-        ui.transferOnScript->setText("\"" + transferOnScript + "\"");
-      });
-
-  QObject::connect(
-      ui.transferOffScriptBrowse, &QPushButton::clicked, this, [=]() {
-        QString transferOffScript = QFileDialog::getOpenFileName(
-            this, "Select script", ui.transferOffScript->text());
-        if (transferOffScript.isEmpty()) {
-          return;
-        }
-
-        if (!QFileInfo(transferOffScript).isExecutable()) {
-          QMessageBox::critical(this, "Error",
-                                QString("File\n\n %1\n\n is not executable.")
-                                    .arg(transferOffScript));
-          return;
-        }
-
-        if (QFileInfo(transferOffScript) ==
-            QFileInfo(qApp->applicationFilePath())) {
-          QMessageBox::critical(
-              this, "Error",
-              "You selected RcloneBrowser executable!\nPlease "
-              "select your script executable instead.");
-          return;
-        }
-
-        ui.transferOffScript->setText("\"" + transferOffScript + "\"");
-      });
-
   QObject::connect(ui.closeToTray, &QCheckBox::clicked, this, [=]() {
     if (ui.closeToTray->isChecked()) {
       ui.startMinimisedToTray->setDisabled(false);
@@ -215,33 +82,8 @@ PreferencesDialog::PreferencesDialog(QWidget *parent) : QDialog(parent) {
     }
   });
 
-  ui.rclone->setText(
-      QDir::toNativeSeparators(settings->value("Settings/rclone").toString()));
-  ui.rcloneConf->setText(QDir::toNativeSeparators(
-      settings->value("Settings/rcloneConf").toString()));
-  ui.stream->setText(settings->value("Settings/stream").toString());
-
-#if defined(Q_OS_OPENBSD) || defined(Q_OS_NETBSD)
-  ui.mount->setText(
-      settings
-          ->value("Settings/mount",
-                  "* mount is not supported by rclone on this system *")
-          .toString());
-  ui.mount->setDisabled(true);
-#else
-  ui.mount->setText(settings->value("Settings/mount").toString());
-#endif
-
   ui.defaultDownloadDir->setText(QDir::toNativeSeparators(
       settings->value("Settings/defaultDownloadDir").toString()));
-  ui.defaultUploadDir->setText(QDir::toNativeSeparators(
-      settings->value("Settings/defaultUploadDir").toString()));
-  ui.defaultDownloadOptions->setText(
-      settings->value("Settings/defaultDownloadOptions").toString());
-  ui.defaultUploadOptions->setText(
-      settings->value("Settings/defaultUploadOptions").toString());
-  ui.defaultRcloneOptions->setText(
-      settings->value("Settings/defaultRcloneOptions").toString());
 
   ui.checkRcloneBrowserUpdates->setChecked(
       settings->value("Settings/checkRcloneBrowserUpdates", true).toBool());
@@ -421,96 +263,12 @@ PreferencesDialog::PreferencesDialog(QWidget *parent) : QDialog(parent) {
     }
   }
 
-  ui.queueScript->setText(QDir::toNativeSeparators(
-      settings->value("Settings/queueScript").toString()));
-  ui.transferOnScript->setText(QDir::toNativeSeparators(
-      settings->value("Settings/transferOnScript").toString()));
-  ui.transferOffScript->setText(QDir::toNativeSeparators(
-      settings->value("Settings/transferOffScript").toString()));
-
-  ui.queueScriptRun->setChecked(
-      settings->value("Settings/queueScriptRun", true).toBool());
-  ui.jobStartScriptRun->setChecked(
-      settings->value("Settings/jobStartScriptRun", true).toBool());
-  ui.jobLastFinishedScriptRun->setChecked(
-      settings->value("Settings/jobLastFinishedScriptRun", true).toBool());
-
-  if (ui.queueScript->text().trimmed().isEmpty()) {
-    ui.queueScriptRun->setEnabled(false);
-  } else {
-    ui.queueScriptRun->setEnabled(true);
-  }
-  if (ui.transferOnScript->text().trimmed().isEmpty()) {
-    ui.jobStartScriptRun->setEnabled(false);
-  } else {
-    ui.jobStartScriptRun->setEnabled(true);
-  }
-  if (ui.transferOffScript->text().trimmed().isEmpty()) {
-    ui.jobLastFinishedScriptRun->setEnabled(false);
-  } else {
-    ui.jobLastFinishedScriptRun->setEnabled(true);
-  }
-
-  QObject::connect(ui.queueScript, &QLineEdit::textChanged, this, [=]() {
-    if (ui.queueScript->text().trimmed().isEmpty()) {
-      ui.queueScriptRun->setEnabled(false);
-      ui.queueScriptRun->setChecked(false);
-    } else {
-      ui.queueScriptRun->setEnabled(true);
-    }
-  });
-
-  QObject::connect(ui.transferOnScript, &QLineEdit::textChanged, this, [=]() {
-    if (ui.transferOnScript->text().trimmed().isEmpty()) {
-      ui.jobStartScriptRun->setEnabled(false);
-      ui.jobStartScriptRun->setChecked(false);
-    } else {
-      ui.jobStartScriptRun->setEnabled(true);
-    }
-  });
-
-  QObject::connect(ui.transferOffScript, &QLineEdit::textChanged, this, [=]() {
-    if (ui.transferOffScript->text().trimmed().isEmpty()) {
-      ui.jobLastFinishedScriptRun->setEnabled(false);
-      ui.jobLastFinishedScriptRun->setChecked(false);
-    } else {
-      ui.jobLastFinishedScriptRun->setEnabled(true);
-    }
-  });
 }
 
 PreferencesDialog::~PreferencesDialog() {}
 
-QString PreferencesDialog::getRclone() const {
-  return QDir::fromNativeSeparators(ui.rclone->text());
-}
-
-QString PreferencesDialog::getRcloneConf() const {
-  return QDir::fromNativeSeparators(ui.rcloneConf->text());
-}
-
-QString PreferencesDialog::getStream() const { return ui.stream->text(); }
-
-QString PreferencesDialog::getMount() const { return ui.mount->text(); }
-
 QString PreferencesDialog::getDefaultDownloadDir() const {
   return QDir::fromNativeSeparators(ui.defaultDownloadDir->text());
-}
-
-QString PreferencesDialog::getDefaultUploadDir() const {
-  return QDir::fromNativeSeparators(ui.defaultUploadDir->text());
-}
-
-QString PreferencesDialog::getDefaultDownloadOptions() const {
-  return ui.defaultDownloadOptions->text();
-}
-
-QString PreferencesDialog::getDefaultUploadOptions() const {
-  return ui.defaultUploadOptions->text();
-}
-
-QString PreferencesDialog::getDefaultRcloneOptions() const {
-  return ui.defaultRcloneOptions->text();
 }
 
 bool PreferencesDialog::getCheckRcloneBrowserUpdates() const {
@@ -694,26 +452,3 @@ QString PreferencesDialog::getPreemptiveLoadingLevel() const {
   }
 }
 
-QString PreferencesDialog::getQueueScript() const {
-  return ui.queueScript->text();
-}
-
-QString PreferencesDialog::getTransferOnScript() const {
-  return ui.transferOnScript->text();
-}
-
-QString PreferencesDialog::getTransferOffScript() const {
-  return ui.transferOffScript->text();
-}
-
-bool PreferencesDialog::getQueueScriptRun() const {
-  return ui.queueScriptRun->isChecked();
-}
-
-bool PreferencesDialog::getJobStartScriptRun() const {
-  return ui.jobStartScriptRun->isChecked();
-}
-
-bool PreferencesDialog::getJobLastFinishedScriptRun() const {
-  return ui.jobLastFinishedScriptRun->isChecked();
-}

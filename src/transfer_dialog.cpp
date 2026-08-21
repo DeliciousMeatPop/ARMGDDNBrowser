@@ -56,8 +56,8 @@ TransferDialog::TransferDialog(bool isDownload, bool isDrop,
   setMinimumHeight(this->height());
   QTimer::singleShot(0, this, SLOT(size()));
 
-  setWindowTitle(isDownload ? "Rclone Browser - Download"
-                            : "Rclone Browser - Upload");
+  setWindowTitle(isDownload ? "ARMGDDN Browser - Download"
+                            : "ARMGDDN Browser - Upload");
 
   QString iconsColour = settings->value("Settings/iconsColour").toString();
 
@@ -109,6 +109,26 @@ TransferDialog::TransferDialog(bool isDownload, bool isDrop,
   run->setToolTip("ALT-r");
 
   saveTask->setDefault(true);
+
+  // ARMGDDN Browser: downloads only let you choose the destination folder.
+  // Hide the saved-task / queue / dry-run controls and all rclone-option
+  // tabs - those options are configured by editing the ini file. Copy is the
+  // only operation and rclone options come from the ini defaults.
+  ui.rbCopy->setChecked(true);
+  ui.tabWidget->hide();
+  ui.groupBox_2->hide();
+  ui.groupBox_3->hide();
+  saveTask->hide();
+  dryRun->hide();
+  run->setText("&Download");
+
+  // the dialog was sized while the (now hidden) options were visible - shrink
+  // it back down to just the source/destination rows
+  QTimer::singleShot(0, this, [this]() {
+    setMinimumHeight(0);
+    setMaximumHeight(QWIDGETSIZE_MAX);
+    adjustSize();
+  });
 
   if (!mIsEditMode) {
 
