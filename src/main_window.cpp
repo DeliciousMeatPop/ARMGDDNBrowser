@@ -27,11 +27,7 @@ MainWindow::MainWindow() {
   mMacOsPowerSaving = new MacOsPowerSaving();
 #endif
 
-  if (IsPortableMode()) {
-    this->setWindowTitle("Rclone Browser - portable mode - BETA release");
-  } else {
-    this->setWindowTitle("Rclone Browser - BETA release");
-  }
+  this->setWindowTitle("ARMGDDN Browser");
 
   auto settings = GetSettings();
 
@@ -134,8 +130,11 @@ MainWindow::MainWindow() {
   if (settings->contains("MainWindow/geometry")) {
     restoreGeometry(settings->value("MainWindow/geometry").toByteArray());
   }
-  SetRclone(settings->value("Settings/rclone").toString());
-  SetRcloneConf(settings->value("Settings/rcloneConf").toString());
+  // ARMGDDN Browser: rclone binary and config are always taken from the
+  // application folder (AG/rclone + ag.conf/rclone.conf). They are never
+  // user-configurable.
+  SetRclone(AutoDetectRclone());
+  SetRcloneConf(AutoDetectRcloneConf());
 
   mAlwaysShowInTray =
       settings->value("Settings/alwaysShowInTray", false).toBool();
@@ -654,17 +653,13 @@ MainWindow::MainWindow() {
 
   QObject::connect(ui.about, &QAction::triggered, this, [=]() {
     QMessageBox::about(
-        this, "Rclone Browser",
+        this, "ARMGDDN Browser",
         QString(
-            R"(<h3>GUI for rclone, v)" RCLONE_BROWSER_VERSION "</h3>"
+            R"(<h3>ARMGDDN Browser, v)" RCLONE_BROWSER_VERSION "</h3>"
 
-            R"(<p>Copyright &copy; 2019-2020 <a href="https://github.com/kapitainsky/RcloneBrowser/blob/master/LICENSE">kapitainsky</a></p>)"
+            R"(<p>Forked from <a href="https://github.com/kapitainsky/RcloneBrowser">Rclone Browser</a> by kapitainsky (originally by Martins Mozeiko).</p>)"
 
-            R"(<p>Current development and maintenance<br /><a href="https://github.com/kapitainsky/RcloneBrowser">kapitainsky</a></p>)"
-
-            R"(<p>New features and fixes<br /><a href="https://github.com/kapitainsky/RcloneBrowser/graphs/contributors">contributors</a></p>)"
-
-            R"(<p>Original version<br /><a href="https://mmozeiko.github.io/RcloneBrowser">Martins Mozeiko</a></p>)"));
+            R"(<p>Edited with &#10084; by DMP of ARMGDDN Games.</p>)"));
   });
   QObject::connect(ui.aboutQt, &QAction::triggered, qApp,
                    &QApplication::aboutQt);
@@ -2088,23 +2083,9 @@ MainWindow::MainWindow() {
 
   QTimer::singleShot(0, ui.remotes, SLOT(setFocus()));
 
-  QString rclone = GetRclone();
-  if (rclone.isEmpty()) {
-    rclone = QStandardPaths::findExecutable("rclone");
-    if (rclone.isEmpty()) {
-      QMessageBox::information(
-          this, "Error",
-          "Cannot check rclone version!\nPlease verify rclone location.");
-      emit ui.preferences->trigger();
-    } else {
-      auto settings = GetSettings();
-      settings->setValue("Settings/rclone", rclone);
-      SetRclone(rclone);
-      rcloneGetVersion();
-    }
-  } else {
-    rcloneGetVersion();
-  }
+  // ARMGDDN Browser: the rclone/AG binary is auto-detected from the
+  // application folder, so we can go straight to checking its version.
+  rcloneGetVersion();
 
   // we start all auto mount tasks with 1s delay - so RB has chance to start
   // properly
@@ -2637,14 +2618,15 @@ void MainWindow::rcloneGetVersion() {
             if (p->error() == QProcess::FailedToStart) {
               QMessageBox::information(
                   this, "Error",
-                  "Wrong rclone executable or rclone not found!\nPlease select "
-                  "its location in next dialog.");
+                  "AG/rclone was not found next to ARMGDDN Browser.\n\nPlease "
+                  "make sure AG.exe (or rclone.exe) is in the same folder as "
+                  "this application.");
             } else {
               QMessageBox::information(this, "Error",
-                                       "Cannot check rclone version!\nPlease "
-                                       "verify rclone location.");
+                                       "Cannot check the AG/rclone version.\n\n"
+                                       "Please make sure AG.exe (or rclone.exe) "
+                                       "in this folder is valid.");
             }
-            emit ui.preferences->trigger();
           }
         }
 
@@ -2817,9 +2799,9 @@ void MainWindow::rcloneGetVersion() {
 
         QMessageBox::information(
             this, "Error",
-            "Cannot start rclone\n\n Error: " + errorString +
-                "\n\nPlease verify rclone excecutable location.");
-        emit ui.preferences->trigger();
+            "Cannot start AG/rclone\n\n Error: " + errorString +
+                "\n\nPlease make sure AG.exe (or rclone.exe) is in the same "
+                "folder as ARMGDDN Browser.");
       });
 
   UseRclonePassword(p);
@@ -3115,9 +3097,9 @@ void MainWindow::rcloneListRemotes() {
 
         QMessageBox::information(
             this, "Error",
-            "Cannot start rclone\n\n Error: " + errorString +
-                "\n\nPlease verify rclone excecutable location.");
-        emit ui.preferences->trigger();
+            "Cannot start AG/rclone\n\n Error: " + errorString +
+                "\n\nPlease make sure AG.exe (or rclone.exe) is in the same "
+                "folder as ARMGDDN Browser.");
       });
 
   UseRclonePassword(p);
