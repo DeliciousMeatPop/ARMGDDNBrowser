@@ -386,27 +386,14 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
                      remoteType, _remoteMode, isMultiselect, includedList,
                      this);
     if (t.exec() == QDialog::Accepted) {
+      // ARMGDDN Browser: downloads always run directly to the chosen folder.
+      QString src = t.getSource();
+      QString dst = t.getDest();
+      QStringList args = t.getOptions();
+      QString info = QString("%1 from %2").arg(t.getMode()).arg(src);
 
-      if (t.getDryRun() || t.getTaskId() == "") {
-
-        QString src = t.getSource();
-        QString dst = t.getDest();
-        QStringList args = t.getOptions();
-        QString info;
-
-        if (t.getDryRun()) {
-          args << "--dry-run";
-          info = QString("Dry run, %1 from %2").arg(t.getMode()).arg(src);
-        } else {
-          info = QString("%1 from %2").arg(t.getMode()).arg(src);
-        }
-
-        emit addTransfer(info, src, dst, args, QUuid::createUuid().toString(),
-                         "", QUuid::createUuid().toString());
-
-      } else {
-        emit addSavedTransfer(t.getTaskId(), t.getDryRun(), t.getAddToQueue());
-      }
+      emit addTransfer(info, src, dst, args, QUuid::createUuid().toString(), "",
+                       QUuid::createUuid().toString());
     }
   });
 

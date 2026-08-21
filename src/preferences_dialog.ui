@@ -1112,19 +1112,8 @@
   </layout>
  </widget>
  <tabstops>
-  <tabstop>rclone</tabstop>
-  <tabstop>rcloneBrowse</tabstop>
-  <tabstop>rcloneConf</tabstop>
-  <tabstop>rcloneConfBrowse</tabstop>
-  <tabstop>stream</tabstop>
-  <tabstop>mount</tabstop>
   <tabstop>defaultDownloadDir</tabstop>
   <tabstop>defaultDownloadDirBrowse</tabstop>
-  <tabstop>defaultUploadDir</tabstop>
-  <tabstop>defaultUploadDirBrowse</tabstop>
-  <tabstop>defaultDownloadOptions</tabstop>
-  <tabstop>defaultUploadOptions</tabstop>
-  <tabstop>defaultRcloneOptions</tabstop>
   <tabstop>checkRcloneBrowserUpdates</tabstop>
   <tabstop>checkRcloneUpdates</tabstop>
   <tabstop>tabWidget</tabstop>

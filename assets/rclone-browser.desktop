@@ -1,6 +1,6 @@
 [Desktop Entry]
-Name=Rclone Browser
-Comment=Simple cross-platform GUI for rclone
+Name=ARMGDDN Browser
+Comment=ARMGDDN Games browser for rclone remotes
 Exec=rclone-browser
 Icon=rclone-browser
 Terminal=false

@@ -99,6 +99,9 @@ void groupRemotesIntoFolders(QListWidget *remotes, const QString &img_add) {
     QFont f = header->font();
     f.setBold(true);
     header->setFont(f);
+    // subtle translucent tint so headers read as group dividers in both themes
+    header->setBackground(QColor(128, 128, 128, 40));
+    header->setToolTip(QString("Remote folder - matches \"%1\"").arg(folder.second));
     // clickable (to expand/collapse) but not selectable/openable
     header->setFlags(Qt::ItemIsEnabled);
     updateFolderHeaderText(header);
