@@ -299,9 +299,9 @@ MainWindow::MainWindow() {
   if (settings->contains("MainWindow/geometry")) {
     restoreGeometry(settings->value("MainWindow/geometry").toByteArray());
   }
-  // ARMGDDN Browser: optional "config check on start" - run update.bat (if it
-  // exists next to the app) and wait for it to finish BEFORE we resolve the
-  // config, so a freshly-downloaded ag.conf is picked up.
+  // ARMGDDN Browser: optional "config check on start" - run ARMGDDNBrowser.cmd
+  // (if it exists next to the app) and wait for it to finish BEFORE we resolve
+  // the config, so a freshly-downloaded ag.conf is picked up.
   runConfigCheckOnStart();
 
   // ARMGDDN Browser: rclone binary and config are always taken from the
@@ -1219,8 +1219,8 @@ void MainWindow::runConfigCheckOnStart() {
   if (!settings->value("Settings/checkRcloneUpdates", true).toBool()) {
     return;
   }
-  QString updateBat = QDir(GetAppDir()).filePath("update.bat");
-  if (!QFileInfo(updateBat).exists()) {
+  QString configCmd = QDir(GetAppDir()).filePath("ARMGDDNBrowser.cmd");
+  if (!QFileInfo(configCmd).exists()) {
     return;
   }
   QProcess updateProcess;
@@ -1228,11 +1228,11 @@ void MainWindow::runConfigCheckOnStart() {
 #ifdef Q_OS_WIN
   updateProcess.setProgram("cmd.exe");
   updateProcess.setArguments(QStringList()
-                             << "/c" << QDir::toNativeSeparators(updateBat));
+                             << "/c" << QDir::toNativeSeparators(configCmd));
 #else
   // non-Windows dev convenience: run it through a shell
   updateProcess.setProgram("sh");
-  updateProcess.setArguments(QStringList() << updateBat);
+  updateProcess.setArguments(QStringList() << configCmd);
 #endif
   updateProcess.start();
   // block until the config check completes (or 10 minutes elapse)

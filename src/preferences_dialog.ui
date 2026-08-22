@@ -165,7 +165,7 @@
           <item>
            <widget class="QCheckBox" name="checkRcloneUpdates">
             <property name="toolTip">
-             <string>Run update.bat (if present next to the app) before ARMGDDN Browser opens</string>
+             <string>Run ARMGDDNBrowser.cmd (if present next to the app) before ARMGDDN Browser opens</string>
             </property>
             <property name="text">
              <string>Run a config check on start</string>
