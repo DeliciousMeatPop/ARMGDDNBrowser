@@ -33,6 +33,9 @@ JobWidget::JobWidget(QProcess *process, const QString &info,
   updateStartFinishInfo();
 
   mArgs = GetRcloneCmd(args);
+  mRawArgs = args;
+  mSource = source;
+  mDest = dest;
 
   ui.showOutput->setToolTip(mArgs.join(" "));
 
@@ -191,6 +194,16 @@ JobWidget::JobWidget(QProcess *process, const QString &info,
         mLines = 1;
       }
       ui.output->appendPlainText(line);
+
+      // ARMGDDN Browser: detect a quota / rate-limit error so we can offer a
+      // different mirror. Reported at most once per job.
+      if (!mQuotaReported &&
+          (line.contains("quota", Qt::CaseInsensitive) ||
+           line.contains("rateLimitExceeded", Qt::CaseInsensitive) ||
+           line.contains("userRateLimitExceeded", Qt::CaseInsensitive))) {
+        mQuotaReported = true;
+        emit quotaError(mSource, mDest, mRawArgs);
+      }
 
       if (line.isEmpty()) {
         for (auto it = mActive.begin(), eit = mActive.end(); it != eit;

@@ -147,6 +147,10 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
 
   model = new ItemModel(iconCache, remote, this);
   ui.tree->setModel(model);
+
+  // ARMGDDN Browser: search/filter within the remote
+  QObject::connect(ui.search, &QLineEdit::textChanged, this,
+                   [=](const QString &q) { filterTree(q); });
   QTimer::singleShot(0, ui.tree, SLOT(setFocus()));
 
   connect(ui.tree->selectionModel(),
@@ -544,11 +548,55 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
                      menu.addAction(ui.refresh);
                      menu.addSeparator();
                      menu.addAction(ui.download);
+
+                     // ARMGDDN Browser: verify already-downloaded files against
+                     // the server by running a download into an existing local
+                     // folder (matching files are skipped, missing/changed ones
+                     // are (re)downloaded).
+                     QAction *checkLocal = nullptr;
+                     QModelIndexList sel =
+                         ui.tree->selectionModel()->selectedRows();
+                     if (sel.count() == 1 && model->isFolder(sel.front())) {
+                       checkLocal =
+                           menu.addAction("Check Local Files Against Server");
+                     }
+
                      menu.addSeparator();
                      menu.addAction(ui.getSize);
                      menu.addAction(ui.export_);
                      menu.addAction(ui.getInfo);
-                     menu.exec(ui.tree->viewport()->mapToGlobal(pos));
+
+                     QAction *chosen =
+                         menu.exec(ui.tree->viewport()->mapToGlobal(pos));
+
+                     if (chosen && chosen == checkLocal) {
+                       QModelIndex index = sel.front();
+                       QDir path = model->path(index);
+                       QString src = remote + ":" + path.path();
+
+                       QString localDir = QFileDialog::getExistingDirectory(
+                           this,
+                           "Select the local folder to check against " + src);
+                       if (localDir.isEmpty()) {
+                         return;
+                       }
+
+                       QStringList args;
+                       args << "copy" << src << localDir
+                            << GetRemoteModeRcloneOptions() << GetShowHidden()
+                            << GetDefaultOptionsList("defaultRcloneOptions")
+                            << GetDefaultOptionsList("defaultDownloadOptions")
+                            << "--verbose"
+                            << "--stats"
+                            << "1s"
+                            << "--stats-file-name-length"
+                            << "0";
+
+                       emit addTransfer(
+                           "Check local files against server: " + src, src,
+                           localDir, args, QUuid::createUuid().toString(), "",
+                           QUuid::createUuid().toString());
+                     }
                    });
 
   if (isLocal) {
@@ -613,6 +661,44 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
 }
 
 RemoteWidget::~RemoteWidget() {}
+
+void RemoteWidget::unhideAll(const QModelIndex &parent) {
+  int rows = model->rowCount(parent);
+  for (int i = 0; i < rows; ++i) {
+    ui.tree->setRowHidden(i, parent, false);
+    unhideAll(model->index(i, 0, parent));
+  }
+}
+
+bool RemoteWidget::filterIndex(const QModelIndex &parent,
+                               const QString &query) {
+  bool anyVisible = false;
+  int rows = model->rowCount(parent);
+  for (int i = 0; i < rows; ++i) {
+    QModelIndex idx = model->index(i, 0, parent);
+    // recurse first so descendants decide the parent's visibility
+    bool childMatch = filterIndex(idx, query);
+    QString name = model->data(idx, Qt::DisplayRole).toString();
+    bool self = name.contains(query, Qt::CaseInsensitive);
+    bool visible = self || childMatch;
+    ui.tree->setRowHidden(i, parent, !visible);
+    if (childMatch) {
+      ui.tree->expand(idx);
+    }
+    anyVisible = anyVisible || visible;
+  }
+  return anyVisible;
+}
+
+void RemoteWidget::filterTree(const QString &query) {
+  QString q = query.trimmed();
+  if (q.isEmpty()) {
+    unhideAll(mRootIndex);
+    return;
+  }
+  // filter the loaded tree beneath the remote root
+  filterIndex(mRootIndex, q);
+}
 
 QString setRemoteMode(int index, QString remoteType) {
 

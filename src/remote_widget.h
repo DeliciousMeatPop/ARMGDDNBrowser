@@ -77,4 +77,10 @@ private:
   QModelIndex mDestIndex;
 
   void clearPreemptiveQueues();
+
+  // ARMGDDN Browser: filter the (loaded) tree by name. Returns true if the
+  // subtree under parent contains a match.
+  void filterTree(const QString &query);
+  bool filterIndex(const QModelIndex &parent, const QString &query);
+  void unhideAll(const QModelIndex &parent);
 };

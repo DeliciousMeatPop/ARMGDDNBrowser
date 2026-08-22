@@ -35,6 +35,27 @@ bool isFolderHeader(const QListWidgetItem *item) {
   return item && item->data(kItemKindRole).toString() == "folder";
 }
 
+// ARMGDDN Browser: desaturate an icon (keeping alpha) so remotes shown inside a
+// mirror folder read as black-and-white, making the folder boundary obvious.
+QIcon grayscaleIcon(const QIcon &icon) {
+  const QList<QSize> sizes = icon.availableSizes();
+  int side = 256;
+  if (!sizes.isEmpty()) {
+    side = qMax(sizes.first().width(), sizes.first().height());
+  }
+  QPixmap pm = icon.pixmap(QSize(side, side));
+  QImage img = pm.toImage().convertToFormat(QImage::Format_ARGB32);
+  for (int y = 0; y < img.height(); ++y) {
+    QRgb *line = reinterpret_cast<QRgb *>(img.scanLine(y));
+    for (int x = 0; x < img.width(); ++x) {
+      const QRgb p = line[x];
+      const int g = qGray(p);
+      line[x] = qRgba(g, g, g, qAlpha(p));
+    }
+  }
+  return QIcon(QPixmap::fromImage(img));
+}
+
 void updateFolderHeaderText(QListWidgetItem *header) {
   QString name = header->data(Qt::UserRole).toString();
   int count = header->data(kFolderCountRole).toInt();
@@ -150,6 +171,9 @@ void groupRemotesIntoFolders(QListWidget *remotes, const QString &img_add) {
 
     for (QListWidgetItem *m : members) {
       m->setData(kFolderNameRole, folder.name);
+      // remotes inside a folder are shown in black-and-white so it is easy to
+      // see where the folder's contents end and the ungrouped remotes begin
+      m->setIcon(grayscaleIcon(m->icon()));
       remotes->addItem(m);
     }
   }
@@ -1504,6 +1528,100 @@ void MainWindow::closeEvent(QCloseEvent *ev) {
   }
 }
 
+void MainWindow::offerMirrorRetry(const QString &source, const QString &dest,
+                                  const QStringList &args) {
+  // source looks like  remoteName:path/to/thing
+  int colon = source.indexOf(':');
+  if (colon < 0) {
+    return;
+  }
+  QString remoteName = source.left(colon);
+  QString path = source.mid(colon + 1);
+
+  // all remote names currently listed (skip mirror-folder headers)
+  QStringList allRemotes;
+  for (int i = 0; i < ui.remotes->count(); ++i) {
+    QListWidgetItem *it = ui.remotes->item(i);
+    if (it->data(kItemKindRole).toString() == "folder") {
+      continue;
+    }
+    allRemotes << it->text();
+  }
+
+  // find the mirror folder this remote belongs to and its other members
+  QStringList siblings;
+  auto settings = GetSettings();
+  settings->beginGroup("RemoteFolders");
+  const QStringList folderKeys = settings->childKeys();
+  for (const QString &fkey : folderKeys) {
+    QString pattern = settings->value(fkey).toString().trimmed();
+    if (pattern.isEmpty()) {
+      continue;
+    }
+    QStringList parts = pattern.split('/');
+    QRegularExpression inc = termToRegex(parts.takeFirst().trimmed());
+    QList<QRegularExpression> exc;
+    for (const QString &e : parts) {
+      QString t = e.trimmed();
+      if (!t.isEmpty()) {
+        exc.append(termToRegex(t));
+      }
+    }
+    auto matches = [&](const QString &n) {
+      if (!inc.match(n).hasMatch()) {
+        return false;
+      }
+      for (const QRegularExpression &ex : exc) {
+        if (ex.match(n).hasMatch()) {
+          return false;
+        }
+      }
+      return true;
+    };
+    if (matches(remoteName)) {
+      for (const QString &n : allRemotes) {
+        if (n != remoteName && matches(n)) {
+          siblings << n;
+        }
+      }
+      break; // first matching folder wins
+    }
+  }
+  settings->endGroup();
+
+  if (siblings.isEmpty()) {
+    QMessageBox::warning(
+        this, "Quota reached",
+        "The mirror \"" + remoteName +
+            "\" hit a download quota or rate limit.\n\nPlease try a different "
+            "mirror.");
+    return;
+  }
+
+  bool ok = false;
+  QString chosen = QInputDialog::getItem(
+      this, "Quota reached",
+      "\"" + remoteName +
+          "\" hit a download quota or rate limit.\n\nRetry the download from "
+          "another mirror:",
+      siblings, 0, false, &ok);
+  if (!ok || chosen.isEmpty()) {
+    return;
+  }
+
+  QString newSource = chosen + ":" + path;
+  QStringList newArgs = args;
+  for (int i = 0; i < newArgs.size(); ++i) {
+    if (newArgs[i] == source) {
+      newArgs[i] = newSource;
+    }
+  }
+
+  addTransfer("Retry from mirror " + chosen + ": " + newSource, newSource, dest,
+              newArgs, QUuid::createUuid().toString(), "",
+              QUuid::createUuid().toString());
+}
+
 void MainWindow::addTransfer(const QString &message, const QString &source,
                              const QString &dest, const QStringList &args,
                              const QString &uniqueId,
@@ -1515,6 +1633,9 @@ void MainWindow::addTransfer(const QString &message, const QString &source,
 
   auto widget = new JobWidget(transfer, message, args, source, dest, uniqueId,
                               transferMode, requestId);
+
+  QObject::connect(widget, &JobWidget::quotaError, this,
+                   &MainWindow::offerMirrorRetry, Qt::QueuedConnection);
 
   auto line = new QFrame();
   line->setFrameShape(QFrame::HLine);
