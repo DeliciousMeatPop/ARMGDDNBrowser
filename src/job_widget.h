@@ -27,6 +27,9 @@ public slots:
 signals:
   void finished(const QString &info, const QString &jobFinalStatus);
   void closed();
+  // ARMGDDN Browser: emitted once if the output shows a quota / rate-limit error
+  void quotaError(const QString &source, const QString &dest,
+                  const QStringList &args);
 
 private:
   Ui::JobWidget ui;
@@ -38,6 +41,12 @@ private:
   int mLastOverallPercent = -1;
 
   QStringList mArgs;
+  // raw rclone args + endpoints, kept so a quota-hit download can be retried
+  // against a different mirror
+  QStringList mRawArgs;
+  QString mSource;
+  QString mDest;
+  bool mQuotaReported = false;
   QHash<QString, QLabel *> mActive;
   QSet<QLabel *> mUpdated;
 

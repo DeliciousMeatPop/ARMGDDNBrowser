@@ -27,6 +27,11 @@ private slots:
 
   void runScript(const QString &script);
 
+  // ARMGDDN Browser: a download hit a quota / rate limit - offer to retry from
+  // a sibling mirror in the same folder.
+  void offerMirrorRetry(const QString &source, const QString &dest,
+                        const QStringList &args);
+
   void slotCloseTab(int index);
 
   // quit RB but only when all processes finished
