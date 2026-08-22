@@ -35,6 +35,27 @@ bool isFolderHeader(const QListWidgetItem *item) {
   return item && item->data(kItemKindRole).toString() == "folder";
 }
 
+// ARMGDDN Browser: desaturate an icon (keeping alpha) so remotes shown inside a
+// mirror folder read as black-and-white, making the folder boundary obvious.
+QIcon grayscaleIcon(const QIcon &icon) {
+  const QList<QSize> sizes = icon.availableSizes();
+  int side = 256;
+  if (!sizes.isEmpty()) {
+    side = qMax(sizes.first().width(), sizes.first().height());
+  }
+  QPixmap pm = icon.pixmap(QSize(side, side));
+  QImage img = pm.toImage().convertToFormat(QImage::Format_ARGB32);
+  for (int y = 0; y < img.height(); ++y) {
+    QRgb *line = reinterpret_cast<QRgb *>(img.scanLine(y));
+    for (int x = 0; x < img.width(); ++x) {
+      const QRgb p = line[x];
+      const int g = qGray(p);
+      line[x] = qRgba(g, g, g, qAlpha(p));
+    }
+  }
+  return QIcon(QPixmap::fromImage(img));
+}
+
 void updateFolderHeaderText(QListWidgetItem *header) {
   QString name = header->data(Qt::UserRole).toString();
   int count = header->data(kFolderCountRole).toInt();
@@ -150,6 +171,9 @@ void groupRemotesIntoFolders(QListWidget *remotes, const QString &img_add) {
 
     for (QListWidgetItem *m : members) {
       m->setData(kFolderNameRole, folder.name);
+      // remotes inside a folder are shown in black-and-white so it is easy to
+      // see where the folder's contents end and the ungrouped remotes begin
+      m->setIcon(grayscaleIcon(m->icon()));
       remotes->addItem(m);
     }
   }
