@@ -148,9 +148,25 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
   model = new ItemModel(iconCache, remote, this);
   ui.tree->setModel(model);
 
-  // ARMGDDN Browser: search/filter within the remote
+  // ARMGDDN Browser: debounced, background search/filter within the remote
+  ui.searchResults->hide();
+
+  mSearchDebounce = new QTimer(this);
+  mSearchDebounce->setSingleShot(true);
+  mSearchDebounce->setInterval(2000); // wait 2s after typing stops
+  QObject::connect(mSearchDebounce, &QTimer::timeout, this,
+                   [=]() { startSearchComputation(); });
+
+  mSearchWorker = new QTimer(this);
+  mSearchWorker->setInterval(0); // process a chunk each event-loop pass
+  QObject::connect(mSearchWorker, &QTimer::timeout, this,
+                   [=]() { searchStep(); });
+
   QObject::connect(ui.search, &QLineEdit::textChanged, this,
-                   [=](const QString &q) { filterTree(q); });
+                   [=](const QString &q) { onSearchTextChanged(q); });
+
+  QObject::connect(ui.searchResults, &QPushButton::clicked, this,
+                   [=]() { applySearchResults(); });
   QTimer::singleShot(0, ui.tree, SLOT(setFocus()));
 
   connect(ui.tree->selectionModel(),
@@ -670,34 +686,133 @@ void RemoteWidget::unhideAll(const QModelIndex &parent) {
   }
 }
 
-bool RemoteWidget::filterIndex(const QModelIndex &parent,
-                               const QString &query) {
-  bool anyVisible = false;
-  int rows = model->rowCount(parent);
-  for (int i = 0; i < rows; ++i) {
-    QModelIndex idx = model->index(i, 0, parent);
-    // recurse first so descendants decide the parent's visibility
-    bool childMatch = filterIndex(idx, query);
-    QString name = model->data(idx, Qt::DisplayRole).toString();
-    bool self = name.contains(query, Qt::CaseInsensitive);
-    bool visible = self || childMatch;
-    ui.tree->setRowHidden(i, parent, !visible);
-    if (childMatch) {
-      ui.tree->expand(idx);
-    }
-    anyVisible = anyVisible || visible;
-  }
-  return anyVisible;
-}
+void RemoteWidget::onSearchTextChanged(const QString &query) {
+  // any edit cancels an in-progress search and hides the stale results button
+  mSearchWorker->stop();
+  mSearchStack.clear();
+  mSearchVisible.clear();
+  mSearchMatchCount = 0;
+  ui.searchResults->hide();
 
-void RemoteWidget::filterTree(const QString &query) {
   QString q = query.trimmed();
   if (q.isEmpty()) {
+    // cleared - restore the full tree immediately
+    mSearchDebounce->stop();
+    ui.tree->setUpdatesEnabled(false);
     unhideAll(mRootIndex);
+    ui.tree->setUpdatesEnabled(true);
     return;
   }
-  // filter the loaded tree beneath the remote root
-  filterIndex(mRootIndex, q);
+
+  // (re)start the 2s idle timer - we only search once typing stops
+  mSearchDebounce->start();
+}
+
+void RemoteWidget::startSearchComputation() {
+  mSearchQuery = ui.search->text().trimmed();
+  if (mSearchQuery.isEmpty()) {
+    return;
+  }
+
+  // seed a depth-first walk over the currently loaded tree. The computation
+  // only reads the model (never touches the view) so the tree stays browsable
+  // while it runs.
+  mSearchVisible.clear();
+  mSearchMatchCount = 0;
+  mSearchStack.clear();
+  int rows = model->rowCount(mRootIndex);
+  for (int i = 0; i < rows; ++i) {
+    mSearchStack.append(QPersistentModelIndex(model->index(i, 0, mRootIndex)));
+  }
+
+  ui.searchResults->setEnabled(false);
+  ui.searchResults->setText("Searching…");
+  ui.searchResults->show();
+
+  mSearchWorker->start();
+}
+
+void RemoteWidget::searchStep() {
+  // process a bounded batch per event-loop pass so the UI never freezes
+  const int kBatch = 400;
+  int processed = 0;
+
+  while (!mSearchStack.isEmpty() && processed < kBatch) {
+    QPersistentModelIndex pidx = mSearchStack.takeLast();
+    ++processed;
+    if (!pidx.isValid()) {
+      continue;
+    }
+    QModelIndex idx = pidx;
+
+    QString name = model->data(idx, Qt::DisplayRole).toString();
+    if (name.contains(mSearchQuery, Qt::CaseInsensitive)) {
+      ++mSearchMatchCount;
+      // mark this node and all of its ancestors visible
+      QModelIndex a = idx;
+      while (a.isValid() && a != mRootIndex) {
+        QPersistentModelIndex pa(a);
+        if (mSearchVisible.contains(pa)) {
+          break; // ancestors already recorded
+        }
+        mSearchVisible.insert(pa);
+        a = a.parent();
+      }
+    }
+
+    int rows = model->rowCount(idx);
+    for (int i = 0; i < rows; ++i) {
+      mSearchStack.append(QPersistentModelIndex(model->index(i, 0, idx)));
+    }
+  }
+
+  if (mSearchStack.isEmpty()) {
+    // done - offer the results
+    mSearchWorker->stop();
+    ui.searchResults->setEnabled(true);
+    if (mSearchMatchCount == 0) {
+      ui.searchResults->setText("No matches");
+    } else {
+      ui.searchResults->setText(
+          QString("Show %1 result%2")
+              .arg(mSearchMatchCount)
+              .arg(mSearchMatchCount == 1 ? "" : "s"));
+    }
+  }
+}
+
+void RemoteWidget::applySearchResults() {
+  if (mSearchMatchCount == 0) {
+    return;
+  }
+  // apply the precomputed visible set to the view in one shot with painting
+  // disabled so the reload is as quick as possible
+  ui.tree->setUpdatesEnabled(false);
+
+  QList<QPersistentModelIndex> stack;
+  int rows = model->rowCount(mRootIndex);
+  for (int i = 0; i < rows; ++i) {
+    stack.append(QPersistentModelIndex(model->index(i, 0, mRootIndex)));
+  }
+  while (!stack.isEmpty()) {
+    QPersistentModelIndex pidx = stack.takeLast();
+    if (!pidx.isValid()) {
+      continue;
+    }
+    QModelIndex idx = pidx;
+    bool visible = mSearchVisible.contains(pidx);
+    ui.tree->setRowHidden(idx.row(), idx.parent(), !visible);
+    if (visible) {
+      ui.tree->expand(idx);
+    }
+    int childRows = model->rowCount(idx);
+    for (int i = 0; i < childRows; ++i) {
+      stack.append(QPersistentModelIndex(model->index(i, 0, idx)));
+    }
+  }
+
+  ui.tree->setUpdatesEnabled(true);
+  ui.searchResults->hide();
 }
 
 QString setRemoteMode(int index, QString remoteType) {
