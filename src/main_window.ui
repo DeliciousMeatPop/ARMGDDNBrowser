@@ -40,7 +40,7 @@
       </property>
       <widget class="QWidget" name="widget">
        <attribute name="title">
-        <string>Remotes</string>
+        <string>Mirrors</string>
        </attribute>
        <layout class="QVBoxLayout" name="verticalLayout">
         <item>
@@ -80,16 +80,6 @@
              </size>
             </property>
            </spacer>
-          </item>
-          <item>
-           <widget class="QCheckBox" name="layoutcontrol3">
-            <property name="enabled">
-             <bool>false</bool>
-            </property>
-            <property name="text">
-             <string>CheckBox</string>
-            </property>
-           </widget>
           </item>
           <item>
            <widget class="QToolButton" name="buttonPrefs">
@@ -234,16 +224,6 @@
             </property>
            </spacer>
           </item>
-          <item>
-           <widget class="QCheckBox" name="layoutcontrol2">
-            <property name="enabled">
-             <bool>false</bool>
-            </property>
-            <property name="text">
-             <string>CheckBox</string>
-            </property>
-           </widget>
-          </item>
          </layout>
         </item>
         <item>
@@ -340,6 +320,17 @@
     <addaction name="separator"/>
     <addaction name="quit"/>
    </widget>
+   <widget class="QMenu" name="menuLinks">
+    <property name="title">
+     <string>&amp;Links</string>
+    </property>
+    <addaction name="linkBrowserDownload"/>
+    <addaction name="linkBetaSite"/>
+    <addaction name="separator"/>
+    <addaction name="linkTelegram"/>
+    <addaction name="linkDMP"/>
+    <addaction name="linkOldMan"/>
+   </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
      <string>&amp;Help</string>
@@ -348,9 +339,35 @@
     <addaction name="aboutQt"/>
    </widget>
    <addaction name="menuFile"/>
+   <addaction name="menuLinks"/>
    <addaction name="menuHelp"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
+  <action name="linkBrowserDownload">
+   <property name="text">
+    <string>ARMGDDN Browser Download</string>
+   </property>
+  </action>
+  <action name="linkBetaSite">
+   <property name="text">
+    <string>ARMGDDNBrowser.com (beta)</string>
+   </property>
+  </action>
+  <action name="linkTelegram">
+   <property name="text">
+    <string>ARMGDDN Games Telegram</string>
+   </property>
+  </action>
+  <action name="linkDMP">
+   <property name="text">
+    <string>DMP</string>
+   </property>
+  </action>
+  <action name="linkOldMan">
+   <property name="text">
+    <string>Old Man</string>
+   </property>
+  </action>
   <action name="about">
    <property name="text">
     <string>&amp;About</string>

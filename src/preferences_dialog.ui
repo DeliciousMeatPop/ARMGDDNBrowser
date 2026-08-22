@@ -78,6 +78,40 @@
             </property>
            </widget>
           </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="label_dlopts">
+            <property name="text">
+             <string>Default download options:</string>
+            </property>
+            <property name="buddy">
+             <cstring>defaultDownloadOptions</cstring>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1" colspan="2">
+           <widget class="QLineEdit" name="defaultDownloadOptions">
+            <property name="toolTip">
+             <string>Extra rclone options added to download transfers, e.g. --include *.jpg</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QLabel" name="label_rcopts">
+            <property name="text">
+             <string>Default rclone options:</string>
+            </property>
+            <property name="buddy">
+             <cstring>defaultRcloneOptions</cstring>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1" colspan="2">
+           <widget class="QLineEdit" name="defaultRcloneOptions">
+            <property name="toolTip">
+             <string>Extra rclone options used for all operations, e.g. --fast-list</string>
+            </property>
+           </widget>
+          </item>
          </layout>
         </widget>
        </item>
@@ -121,20 +155,20 @@
           <item>
            <widget class="QCheckBox" name="checkRcloneBrowserUpdates">
             <property name="toolTip">
-             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;check daily for Rclone Browser availability&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             <string>Check daily for a new ARMGDDN Browser release</string>
             </property>
             <property name="text">
-             <string>Check for Rclone Browser updates</string>
+             <string>Check for ARMGDDN Browser updates</string>
             </property>
            </widget>
           </item>
           <item>
            <widget class="QCheckBox" name="checkRcloneUpdates">
             <property name="toolTip">
-             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;check daily for rclone availability&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             <string>Run update.bat (if present next to the app) before ARMGDDN Browser opens</string>
             </property>
             <property name="text">
-             <string>Check for rclone updates</string>
+             <string>Run a config check on start</string>
             </property>
            </widget>
           </item>

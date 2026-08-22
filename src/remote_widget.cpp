@@ -85,10 +85,6 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
       QIcon(":media/images/qbutton_icons/download" + img_add + ".png"));
   ui.getSize->setIcon(
       QIcon(":media/images/qbutton_icons/getsize" + img_add + ".png"));
-  ui.getTree->setIcon(
-      QIcon(":media/images/qbutton_icons/gettree" + img_add + ".png"));
-  ui.link->setIcon(
-      QIcon(":media/images/qbutton_icons/link" + img_add + ".png"));
   ui.export_->setIcon(
       QIcon(":media/images/qbutton_icons/export" + img_add + ".png"));
   ui.getInfo->setIcon(
@@ -97,8 +93,6 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
   ui.buttonRefresh->setDefaultAction(ui.refresh);
   ui.buttonDownload->setDefaultAction(ui.download);
   ui.buttonSize->setDefaultAction(ui.getSize);
-  ui.buttonTree->setDefaultAction(ui.getTree);
-  ui.buttonLink->setDefaultAction(ui.link);
   ui.buttonExport->setDefaultAction(ui.export_);
   ui.buttonInfo->setDefaultAction(ui.getInfo);
 
@@ -125,8 +119,7 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
 
   // ARMGDDN Browser: only read-only browsing buttons remain.
   QList<QToolButton *> browseButtons{ui.buttonRefresh, ui.buttonDownload,
-                                     ui.buttonSize,    ui.buttonTree,
-                                     ui.buttonLink,    ui.buttonExport,
+                                     ui.buttonSize, ui.buttonExport,
                                      ui.buttonInfo};
 
   for (QToolButton *b : browseButtons) {
@@ -146,8 +139,6 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
   ui.refresh->setStatusTip("Refresh (F5)");
   ui.download->setStatusTip("Download files/directories (ALT-d)");
   ui.getSize->setStatusTip("Get items size - rclone size");
-  ui.getTree->setStatusTip("Show directory tree - rclone tree");
-  ui.link->setStatusTip("Fetch public link - rclone link");
   ui.export_->setStatusTip("Export files' list");
   ui.getInfo->setStatusTip("Get remote info - rclone about");
 
@@ -257,7 +248,6 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
         // there is only one item selected
         index = selection.at(0);
 
-        bool topLevel = model->isTopLevel(index);
         bool isFolder = model->isFolder(index);
         QDir path;
 
@@ -265,8 +255,6 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
           ui.refresh->setDisabled(true);
           ui.download->setDisabled(true);
           ui.getSize->setDisabled(true);
-          ui.getTree->setDisabled(true);
-          ui.link->setDisabled(true);
           ui.export_->setDisabled(true);
           ui.getInfo->setDisabled(false);
           path = model->path(model->parent(index));
@@ -276,8 +264,6 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
           ui.refresh->setDisabled(false);
           ui.download->setDisabled(false);
           ui.getSize->setDisabled(false);
-          ui.getTree->setDisabled(!isFolder);
-          ui.link->setDisabled(topLevel);
           ui.export_->setDisabled(!isFolder);
           ui.getInfo->setDisabled(false);
 
@@ -317,47 +303,6 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
     }
   });
 
-  // QObject::connect(ui.link
-  QObject::connect(ui.link, &QAction::triggered, this, [=]() {
-    setRemoteMode(0, remoteType);
-
-    // Elided....Text base measure
-    // progress dialog uses the same fonts
-    QFontMetrics metrix(ui.elidedMeasure->font());
-
-    QString toolTip;
-
-    QModelIndex index = ui.tree->selectionModel()->selectedRows().front();
-
-    QString path = model->path(index).path();
-
-    QString pathMsg =
-        metrix.elidedText((isLocal ? QDir::toNativeSeparators(path) : path),
-                          Qt::ElideMiddle, 500);
-
-    toolTip = "\"" + remote + ":" +
-              (isLocal ? QDir::toNativeSeparators(path) : path) + "\"";
-
-    QProcess *process = new QProcess;
-    UseRclonePassword(process);
-    process->setProgram(GetRclone());
-    process->setArguments(QStringList()
-                          << "link" << GetRcloneConf()
-                          << GetRemoteModeRcloneOptions()
-                          << GetDefaultOptionsList("defaultRcloneOptions")
-                          << remote + ":" + path);
-    process->setProcessChannelMode(QProcess::MergedChannels);
-    ProgressDialog *progress =
-        new ProgressDialog("Fetch Public Link", "Running... ",
-                           QString("Public link for: ") + "\"" +
-                               metrix.elidedText(remote, Qt::ElideMiddle, 150) +
-                               ":" + pathMsg + "\"",
-                           process, NULL, false, true, toolTip);
-    progress->expand();
-    progress->allowToClose();
-    progress->show();
-  });
-
   //!!! QObject::connect(ui.download
   QObject::connect(ui.download, &QAction::triggered, this, [=]() {
     QString _remoteMode =
@@ -395,45 +340,6 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
       emit addTransfer(info, src, dst, args, QUuid::createUuid().toString(), "",
                        QUuid::createUuid().toString());
     }
-  });
-
-  //!!! QObject::connect(ui.getTree
-  QObject::connect(ui.getTree, &QAction::triggered, this, [=]() {
-    setRemoteMode(0, remoteType);
-
-    // Elided....Text base measure
-    // progress dialog uses the same fonts
-    QFontMetrics metrix(ui.elidedMeasure->font());
-
-    QModelIndex index = ui.tree->selectionModel()->selectedRows().front();
-
-    QString path = model->path(index).path();
-    QString pathMsg =
-        metrix.elidedText((isLocal ? QDir::toNativeSeparators(path) : path),
-                          Qt::ElideMiddle, 500);
-
-    QString toolTip = "\"" + remote + ":" +
-                      (isLocal ? QDir::toNativeSeparators(path) : path) + "\"";
-
-    QProcess *process = new QProcess;
-    UseRclonePassword(process);
-    process->setProgram(GetRclone());
-    process->setArguments(
-        QStringList() << "tree"
-                      << "-d" << GetRcloneConf() << GetRemoteModeRcloneOptions()
-                      << GetDefaultOptionsList("defaultRcloneOptions")
-                      << remote + ":" + path);
-    process->setProcessChannelMode(QProcess::MergedChannels);
-    ProgressDialog *progress =
-        new ProgressDialog("Show directories tree", "Running... ",
-                           QString("rclone tree -d ") + "\"" +
-                               metrix.elidedText(remote, Qt::ElideMiddle, 150) +
-                               ":" + pathMsg + "\"",
-                           process, NULL, false, false, toolTip);
-    progress->expand();
-    progress->allowToClose();
-    //    progress->resize(566, 350);
-    progress->show();
   });
 
   //!!! QObject::connect(ui.getSize
@@ -640,8 +546,6 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
                      menu.addAction(ui.download);
                      menu.addSeparator();
                      menu.addAction(ui.getSize);
-                     menu.addAction(ui.getTree);
-                     menu.addAction(ui.link);
                      menu.addAction(ui.export_);
                      menu.addAction(ui.getInfo);
                      menu.exec(ui.tree->viewport()->mapToGlobal(pos));

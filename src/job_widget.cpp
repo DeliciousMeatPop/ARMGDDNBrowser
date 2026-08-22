@@ -230,6 +230,7 @@ JobWidget::JobWidget(QProcess *process, const QString &info,
         ui.progress_info->setStyleSheet(
             "QLabel { color: green; font-weight: bold;}");
         ui.progress_info->setText("(" + m.captured(5) + ")");
+        mLastOverallPercent = m.captured(5).remove('%').toInt();
 
       } else if ((m = rxSize3.match(statsLine)).hasMatch()) {
         ui.size->setText(m.captured(1) + ", " + m.captured(3));
@@ -240,6 +241,7 @@ JobWidget::JobWidget(QProcess *process, const QString &info,
         ui.progress_info->setStyleSheet(
             "QLabel { color: green; font-weight: bold;}");
         ui.progress_info->setText("(" + m.captured(3) + ")");
+        mLastOverallPercent = m.captured(3).remove('%').toInt();
       } else if ((m = rxErrors.match(statsLine)).hasMatch()) {
         ui.errors->setText(m.captured(1));
 
@@ -269,14 +271,28 @@ JobWidget::JobWidget(QProcess *process, const QString &info,
         updateProgress(name, m.captured(2).toInt(), m.captured(3));
       } else if ((m = rxProgress2.match(statsLine)).hasMatch()) {
         QString name = m.captured(1).trimmed();
-        updateProgress(name, m.captured(2).toInt(),
+        int pct = m.captured(2).toInt();
+        updateProgress(name, pct,
                        "File name: " + name + "\nFile stats" +
                            m.captured(0).mid(m.captured(0).indexOf(':')));
+        // keep the collapsed header percent live even if the summary line
+        // does not carry an overall percentage
+        if (mLastOverallPercent < 0) {
+          ui.progress_info->setStyleSheet(
+              "QLabel { color: green; font-weight: bold;}");
+          ui.progress_info->setText("(" + QString::number(pct) + "%)");
+        }
       } else if ((m = rxProgress3.match(statsLine)).hasMatch()) {
         QString name = m.captured(1).trimmed();
-        updateProgress(name, qRound(m.captured(2).toDouble()),
+        int pct = qRound(m.captured(2).toDouble());
+        updateProgress(name, pct,
                        "File name: " + name + "\nFile stats" +
                            m.captured(0).mid(m.captured(0).indexOf(':')));
+        if (mLastOverallPercent < 0) {
+          ui.progress_info->setStyleSheet(
+              "QLabel { color: green; font-weight: bold;}");
+          ui.progress_info->setText("(" + QString::number(pct) + "%)");
+        }
       }
     }
   });
@@ -332,6 +348,10 @@ JobWidget::JobWidget(QProcess *process, const QString &info,
   ui.showDetails->setStyleSheet(
       "QToolButton { border: 0; color: green; font-weight: bold;}");
   ui.showDetails->setText("  Running");
+
+  // ARMGDDN Browser: jobs are expanded by default so live progress is visible
+  // without opening the raw output. Users can collapse them with the arrow.
+  ui.showDetails->setChecked(true);
 }
 
 JobWidget::~JobWidget() {}

@@ -11,6 +11,8 @@ public:
   ~PreferencesDialog();
 
   QString getDefaultDownloadDir() const;
+  QString getDefaultDownloadOptions() const;
+  QString getDefaultRcloneOptions() const;
 
   bool getCheckRcloneBrowserUpdates() const;
   bool getCheckRcloneUpdates() const;

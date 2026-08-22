@@ -33,6 +33,9 @@ private:
 
   QProcess *mProcess;
   int mLines = 0;
+  // overall percent from rclone's summary line; -1 until one is seen, used so
+  // the collapsed header can fall back to per-file progress
+  int mLastOverallPercent = -1;
 
   QStringList mArgs;
   QHash<QString, QLabel *> mActive;
