@@ -27,9 +27,6 @@ private slots:
 
   void runScript(const QString &script);
 
-  // ARMGDDN Browser: run ARMGDDNBrowser.cmd (config check on start) and wait
-  void runConfigCheckOnStart();
-
   // ARMGDDN Browser: a download hit a quota / rate limit - offer to retry from
   // a sibling mirror in the same folder.
   void offerMirrorRetry(const QString &source, const QString &dest,
