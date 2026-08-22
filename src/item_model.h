@@ -34,6 +34,10 @@ struct Item {
   QString modified;
   quint64 size = 0;
 
+  // ARMGDDN Browser: folder sizes are computed lazily in the background
+  enum SizeState { SizeNone, SizeRequested, SizeDone };
+  SizeState sizeState = SizeNone;
+
   QVector<Item *> childs;
 };
 
@@ -105,6 +109,13 @@ private:
 
   Item *get(const QModelIndex &index) const;
   void load(const QPersistentModelIndex &parentIndex, Item *parent);
+
+  // ARMGDDN Browser: lazy, throttled background computation of folder sizes
+  void requestFolderSize(const QModelIndex &index) const;
+  void processSizeQueue();
+  mutable QQueue<QPersistentModelIndex> mSizeQueue;
+  int mSizeProcessCount = 0;
+  static const int mMaxSizeProcesses = 3;
 
   void sortRecursive(Item *item, const ItemSorter &sorter);
   void sort(const QModelIndex &parent, Item *item);

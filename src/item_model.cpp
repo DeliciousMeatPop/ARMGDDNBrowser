@@ -282,8 +282,15 @@ QVariant ItemModel::data(const QModelIndex &index, int role) const {
     case 0:
       return item->name;
     case 1:
-      if (item->isFolder || item->state == Item::Special) {
+      if (item->state == Item::Special) {
         return QString();
+      } else if (item->isFolder) {
+        // ARMGDDN Browser: folder sizes are computed lazily in the background
+        if (item->sizeState == Item::SizeDone) {
+          return getNiceSize(item->size);
+        }
+        requestFolderSize(index);
+        return QStringLiteral("…");
       } else {
         return getNiceSize(item->size);
       }
@@ -584,6 +591,72 @@ void ItemModel::load(const QPersistentModelIndex &parentIndex, Item *parent) {
                     << "1" << GetDefaultOptionsList("defaultRcloneOptions")
                     << mRemote + ":" + parent->path.path(),
       QIODevice::ReadOnly);
+}
+
+void ItemModel::requestFolderSize(const QModelIndex &index) const {
+  Item *item = get(index);
+  if (!item || !item->isFolder || item->sizeState != Item::SizeNone) {
+    return;
+  }
+  item->sizeState = Item::SizeRequested;
+  mSizeQueue.enqueue(QPersistentModelIndex(index));
+  const_cast<ItemModel *>(this)->processSizeQueue();
+}
+
+void ItemModel::processSizeQueue() {
+  while (mSizeProcessCount < mMaxSizeProcesses && !mSizeQueue.isEmpty()) {
+    QPersistentModelIndex pindex = mSizeQueue.dequeue();
+    if (!pindex.isValid()) {
+      continue;
+    }
+    Item *item = get(pindex);
+    if (!item || !item->isFolder) {
+      continue;
+    }
+
+    QString target = mRemote + ":" + item->path.path();
+
+    auto *p = new QProcess(this);
+    UseRclonePassword(p);
+    ++mSizeProcessCount;
+
+    QObject::connect(
+        p,
+        static_cast<void (QProcess::*)(int, QProcess::ExitStatus)>(
+            &QProcess::finished),
+        this, [=](int code, QProcess::ExitStatus) {
+          if (pindex.isValid()) {
+            Item *it = get(pindex);
+            if (it) {
+              if (code == 0) {
+                QJsonParseError err;
+                QJsonDocument doc = QJsonDocument::fromJson(
+                    p->readAllStandardOutput(), &err);
+                if (err.error == QJsonParseError::NoError &&
+                    doc.object().contains("bytes")) {
+                  it->size = static_cast<quint64>(
+                      doc.object().value("bytes").toDouble());
+                }
+              }
+              // mark done either way so we don't retry forever
+              it->sizeState = Item::SizeDone;
+              QModelIndex sIndex = pindex;
+              emit dataChanged(sIndex, sIndex, QVector<int>{Qt::DisplayRole});
+            }
+          }
+          p->deleteLater();
+          --mSizeProcessCount;
+          processSizeQueue();
+        });
+
+    p->start(GetRclone(),
+             QStringList() << "size"
+                           << "--json" << GetRcloneConf()
+                           << GetRemoteModeRcloneOptions() << GetShowHidden()
+                           << GetDefaultOptionsList("defaultRcloneOptions")
+                           << target,
+             QIODevice::ReadOnly);
+  }
 }
 
 void ItemModel::sortRecursive(Item *item, const ItemSorter &sorter) {
