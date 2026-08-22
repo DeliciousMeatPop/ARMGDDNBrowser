@@ -544,11 +544,55 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
                      menu.addAction(ui.refresh);
                      menu.addSeparator();
                      menu.addAction(ui.download);
+
+                     // ARMGDDN Browser: verify already-downloaded files against
+                     // the server by running a download into an existing local
+                     // folder (matching files are skipped, missing/changed ones
+                     // are (re)downloaded).
+                     QAction *checkLocal = nullptr;
+                     QModelIndexList sel =
+                         ui.tree->selectionModel()->selectedRows();
+                     if (sel.count() == 1 && model->isFolder(sel.front())) {
+                       checkLocal =
+                           menu.addAction("Check Local Files Against Server");
+                     }
+
                      menu.addSeparator();
                      menu.addAction(ui.getSize);
                      menu.addAction(ui.export_);
                      menu.addAction(ui.getInfo);
-                     menu.exec(ui.tree->viewport()->mapToGlobal(pos));
+
+                     QAction *chosen =
+                         menu.exec(ui.tree->viewport()->mapToGlobal(pos));
+
+                     if (chosen && chosen == checkLocal) {
+                       QModelIndex index = sel.front();
+                       QDir path = model->path(index);
+                       QString src = remote + ":" + path.path();
+
+                       QString localDir = QFileDialog::getExistingDirectory(
+                           this,
+                           "Select the local folder to check against " + src);
+                       if (localDir.isEmpty()) {
+                         return;
+                       }
+
+                       QStringList args;
+                       args << "copy" << src << localDir
+                            << GetRemoteModeRcloneOptions() << GetShowHidden()
+                            << GetDefaultOptionsList("defaultRcloneOptions")
+                            << GetDefaultOptionsList("defaultDownloadOptions")
+                            << "--verbose"
+                            << "--stats"
+                            << "1s"
+                            << "--stats-file-name-length"
+                            << "0";
+
+                       emit addTransfer(
+                           "Check local files against server: " + src, src,
+                           localDir, args, QUuid::createUuid().toString(), "",
+                           QUuid::createUuid().toString());
+                     }
                    });
 
   if (isLocal) {
