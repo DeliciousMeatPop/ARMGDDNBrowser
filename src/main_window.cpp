@@ -443,6 +443,10 @@ MainWindow::MainWindow() {
       // configured by editing the ini directly.
       settings->setValue("Settings/defaultDownloadDir",
                          dialog.getDefaultDownloadDir().trimmed());
+      settings->setValue("Settings/defaultDownloadOptions",
+                         dialog.getDefaultDownloadOptions().trimmed());
+      settings->setValue("Settings/defaultRcloneOptions",
+                         dialog.getDefaultRcloneOptions().trimmed());
 
       settings->setValue("Settings/checkRcloneBrowserUpdates",
                          dialog.getCheckRcloneBrowserUpdates());

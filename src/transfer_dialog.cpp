@@ -116,11 +116,29 @@ TransferDialog::TransferDialog(bool isDownload, bool isDrop,
   // only operation and rclone options come from the ini defaults.
   ui.rbCopy->setChecked(true);
   ui.tabWidget->hide();
-  ui.groupBox_2->hide();
   ui.groupBox_3->hide();
   saveTask->hide();
   dryRun->hide();
   run->setText("&Download");
+
+  // Keep the parameters group but expose only Transfers, Checkers and
+  // Bandwidth - the rest of the rclone options come from the ini defaults.
+  ui.groupBox_2->setTitle("Download options");
+  // label_11 = Transfers, label_5 = Checkers, label = Bandwidth
+  QList<QWidget *> keepParams{ui.spinTransfers, ui.spinCheckers,
+                              ui.textBandwidth,  ui.label_11,
+                              ui.label_5,        ui.label};
+  for (QWidget *w : ui.groupBox_2->findChildren<QWidget *>()) {
+    if (!keepParams.contains(w)) {
+      w->hide();
+    }
+  }
+
+  // The default-settings button is removed from the UI (defaults are still
+  // applied once below).
+  if (auto *restore = ui.buttonBox->button(QDialogButtonBox::RestoreDefaults)) {
+    restore->setVisible(false);
+  }
 
   // the dialog was sized while the (now hidden) options were visible - shrink
   // it back down to just the source/destination rows
