@@ -94,6 +94,39 @@ int main(int argc, char *argv[]) {
 
   auto settings = GetSettings();
 
+  // ARMGDDN Browser: "config check on start".
+  //
+  // ARMGDDNBrowser.cmd updates the rclone config and then relaunches the
+  // browser. Running it from inside the app would spawn a second copy (the
+  // "already running" error), so instead the very first launch hands off to
+  // the cmd and exits. A one-shot marker file guarantees the copy the cmd
+  // relaunches skips the hand-off and just runs, so we never loop.
+  {
+    QString appDir = GetAppDir();
+    QString cmdPath = QDir(appDir).filePath("ARMGDDNBrowser.cmd");
+    QString marker = QDir(appDir).filePath(".ag_config_check");
+
+    if (QFileInfo::exists(marker)) {
+      // this is the post-update relaunch - consume the marker and run normally
+      QFile::remove(marker);
+    } else if (settings->value("Settings/checkRcloneUpdates", true).toBool() &&
+               QFileInfo::exists(cmdPath)) {
+      QFile mf(marker);
+      if (mf.open(QIODevice::WriteOnly)) {
+        mf.close();
+      }
+#ifdef Q_OS_WIN
+      QProcess::startDetached(
+          "cmd.exe",
+          QStringList() << "/c" << QDir::toNativeSeparators(cmdPath), appDir);
+#else
+      // non-Windows dev convenience
+      QProcess::startDetached("sh", QStringList() << cmdPath, appDir);
+#endif
+      return 0; // let ARMGDDNBrowser.cmd update the config and relaunch
+    }
+  }
+
   // initialize proxy settings
   if (!(settings->contains("Settings/useProxy"))) {
     settings->setValue("Settings/useProxy", "false");
