@@ -121,17 +121,20 @@ TransferDialog::TransferDialog(bool isDownload, bool isDrop,
   dryRun->hide();
   run->setText("&Download");
 
-  // Keep the parameters group but expose only Transfers, Checkers and
-  // Bandwidth - the rest of the rclone options come from the ini defaults.
-  ui.groupBox_2->setTitle("Download options");
-  // label_11 = Transfers, label_5 = Checkers, label = Bandwidth
-  QList<QWidget *> keepParams{ui.spinTransfers, ui.spinCheckers,
-                              ui.textBandwidth,  ui.label_11,
-                              ui.label_5,        ui.label};
-  for (QWidget *w : ui.groupBox_2->findChildren<QWidget *>()) {
-    if (!keepParams.contains(w)) {
-      w->hide();
+  // Expose only Transfers, Checkers and Bandwidth. These live inside the (now
+  // hidden) tab widget, so reparent them into a small visible group added to
+  // the dialog's main layout. The rest of the rclone options come from the ini.
+  QGroupBox *dlOpts = new QGroupBox("Download options", this);
+  QFormLayout *dlForm = new QFormLayout(dlOpts);
+  dlForm->addRow("Transfers", ui.spinTransfers);
+  dlForm->addRow("Checkers", ui.spinCheckers);
+  dlForm->addRow("Bandwidth (KiB/s or b|k|M|G suffix)", ui.textBandwidth);
+  if (auto *mainLayout = qobject_cast<QVBoxLayout *>(layout())) {
+    int idx = mainLayout->indexOf(ui.buttonBox);
+    if (idx < 0) {
+      idx = mainLayout->count();
     }
+    mainLayout->insertWidget(idx, dlOpts);
   }
 
   // The default-settings button is removed from the UI (defaults are still
