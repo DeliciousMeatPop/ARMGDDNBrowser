@@ -46,16 +46,49 @@ void updateFolderHeaderText(QListWidgetItem *header) {
           .arg(count));
 }
 
+// Build a case-insensitive matcher from a single term. A term with '*' is a
+// wildcard matched against the whole name; a plain term matches names that
+// contain it.
+QRegularExpression termToRegex(const QString &term) {
+  if (term.contains('*')) {
+    return QRegularExpression(
+        QRegularExpression::wildcardToRegularExpression(term),
+        QRegularExpression::CaseInsensitiveOption);
+  }
+  return QRegularExpression(QRegularExpression::escape(term),
+                            QRegularExpression::CaseInsensitiveOption);
+}
+
+struct FolderRule {
+  QString name;
+  QRegularExpression include;
+  QList<QRegularExpression> excludes;
+};
+
 void groupRemotesIntoFolders(QListWidget *remotes, const QString &img_add) {
   auto settings = GetSettings();
   settings->beginGroup("RemoteFolders");
   const QStringList folderNames = settings->childKeys();
-  QList<QPair<QString, QString>> folders; // name -> wildcard pattern
+  QList<FolderRule> folders;
   for (const QString &fname : folderNames) {
     QString pattern = settings->value(fname).toString().trimmed();
-    if (!pattern.isEmpty()) {
-      folders.append({fname, pattern});
+    if (pattern.isEmpty()) {
+      continue;
     }
+    // Syntax: include-pattern [ / exclude-term [ / exclude-term ... ] ]
+    // Anything after a '/' is an exclude term, e.g.  Stuff-* / ftp  keeps the
+    // Stuff-* remotes but drops any whose name contains "ftp".
+    QStringList parts = pattern.split('/');
+    FolderRule rule;
+    rule.name = fname;
+    rule.include = termToRegex(parts.takeFirst().trimmed());
+    for (const QString &ex : parts) {
+      QString t = ex.trimmed();
+      if (!t.isEmpty()) {
+        rule.excludes.append(termToRegex(t));
+      }
+    }
+    folders.append(rule);
   }
   settings->endGroup();
 
@@ -63,7 +96,7 @@ void groupRemotesIntoFolders(QListWidget *remotes, const QString &img_add) {
     return;
   }
 
-  QIcon folderIcon(":media/images/qbutton_icons/folder" + img_add + ".png");
+  QIcon folderIcon(":media/images/qbutton_icons/ag_folder" + img_add + ".png");
 
   // snapshot the current flat list of remote items
   QList<QListWidgetItem *> allItems;
@@ -73,26 +106,34 @@ void groupRemotesIntoFolders(QListWidget *remotes, const QString &img_add) {
   QVector<bool> claimed(allItems.size(), false);
 
   for (const auto &folder : folders) {
-    QRegularExpression re(
-        QRegularExpression::wildcardToRegularExpression(folder.second),
-        QRegularExpression::CaseInsensitiveOption);
-
     QList<QListWidgetItem *> members;
     for (int i = 0; i < allItems.size(); ++i) {
       if (claimed[i]) {
         continue;
       }
-      if (re.match(allItems[i]->text()).hasMatch()) {
-        claimed[i] = true;
-        members.append(allItems[i]);
+      const QString name = allItems[i]->text();
+      if (!folder.include.match(name).hasMatch()) {
+        continue;
       }
+      bool excluded = false;
+      for (const QRegularExpression &ex : folder.excludes) {
+        if (ex.match(name).hasMatch()) {
+          excluded = true;
+          break;
+        }
+      }
+      if (excluded) {
+        continue;
+      }
+      claimed[i] = true;
+      members.append(allItems[i]);
     }
     if (members.isEmpty()) {
       continue;
     }
 
-    QListWidgetItem *header = new QListWidgetItem(folderIcon, folder.first);
-    header->setData(Qt::UserRole, folder.first);
+    QListWidgetItem *header = new QListWidgetItem(folderIcon, folder.name);
+    header->setData(Qt::UserRole, folder.name);
     header->setData(kItemKindRole, "folder");
     header->setData(kCollapsedRole, false);
     header->setData(kFolderCountRole, members.size());
@@ -101,14 +142,14 @@ void groupRemotesIntoFolders(QListWidget *remotes, const QString &img_add) {
     header->setFont(f);
     // subtle translucent tint so headers read as group dividers in both themes
     header->setBackground(QColor(128, 128, 128, 40));
-    header->setToolTip(QString("Remote folder - matches \"%1\"").arg(folder.second));
+    header->setToolTip("ARMGDDN mirror folder");
     // clickable (to expand/collapse) but not selectable/openable
     header->setFlags(Qt::ItemIsEnabled);
     updateFolderHeaderText(header);
     remotes->addItem(header);
 
     for (QListWidgetItem *m : members) {
-      m->setData(kFolderNameRole, folder.first);
+      m->setData(kFolderNameRole, folder.name);
       remotes->addItem(m);
     }
   }

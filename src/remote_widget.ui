@@ -114,26 +114,6 @@
            </widget>
           </item>
           <item>
-           <widget class="QToolButton" name="buttonTree">
-            <property name="text">
-             <string>Tree</string>
-            </property>
-            <property name="toolButtonStyle">
-             <enum>Qt::ToolButtonTextUnderIcon</enum>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QToolButton" name="buttonLink">
-            <property name="text">
-             <string>Link</string>
-            </property>
-            <property name="toolButtonStyle">
-             <enum>Qt::ToolButtonTextUnderIcon</enum>
-            </property>
-           </widget>
-          </item>
-          <item>
            <widget class="QToolButton" name="buttonExport">
             <property name="text">
              <string>Export</string>
@@ -272,32 +252,12 @@
 rclone size</string>
    </property>
   </action>
-  <action name="getTree">
-   <property name="text">
-    <string>DirTree</string>
-   </property>
-   <property name="toolTip">
-    <string>Show folders tree
-
-rclone tree</string>
-   </property>
-  </action>
   <action name="export_">
    <property name="text">
     <string>Export</string>
    </property>
    <property name="toolTip">
     <string>Export files list</string>
-   </property>
-  </action>
-  <action name="link">
-   <property name="text">
-    <string>Link</string>
-   </property>
-   <property name="toolTip">
-    <string>Fetch public link
-
-rclone link</string>
    </property>
   </action>
   <action name="getInfo">
