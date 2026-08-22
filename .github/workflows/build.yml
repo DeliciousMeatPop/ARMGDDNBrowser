@@ -5,8 +5,13 @@ on:
     branches:
       - main
       - master
-      
+
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version, e.g. 1.2.3 (leave blank to use the VERSION file)'
+        required: false
+        default: ''
 
 env:
   QT_VERSION: '6.10.3'
@@ -15,9 +20,26 @@ jobs:
   build_windows:
     name: Windows Build (x64)
     runs-on: windows-latest
-    
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+
     steps:
       - uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: ver
+        shell: bash
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            V="${{ github.event.inputs.version }}"
+          else
+            V="$(cat VERSION | tr -d '[:space:]')"
+          fi
+          # Bake the version into the VERSION file so the About box matches
+          printf '%s' "$V" > VERSION
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "Building ARMGDDN Browser v$V"
+
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
         with:
@@ -26,7 +48,8 @@ jobs:
           target: 'desktop'
           arch: 'win64_msvc2022_64'
           modules: 'qtmultimedia'
-      - name: Build Rclone Browser
+
+      - name: Build ARMGDDN Browser
         run: |
           mkdir build
           cd build
@@ -34,209 +57,55 @@ jobs:
           # (windows-latest ships VS 2026, not VS 2022).
           cmake -A x64 -DCMAKE_CONFIGURATION_TYPES="Release" -DCMAKE_PREFIX_PATH="$env:QT_ROOT_DIR" ..
           cmake --build . --config Release
-          & "$env:QT_ROOT_DIR\bin\windeployqt.exe" --no-translations --no-compiler-runtime --no-svg ".\build\Release\RcloneBrowser.exe"
+          & "$env:QT_ROOT_DIR\bin\windeployqt.exe" --no-translations --no-compiler-runtime --no-svg ".\build\Release\ARMGDDNBrowser.exe"
+
+      - name: Stage portable package
+        shell: bash
+        run: |
+          mkdir -p package
+          cp -r build/build/Release/* package/
+          # A blank ARMGDDNBrowser.ini next to ARMGDDNBrowser.exe makes the
+          # app run in portable mode.
+          : > "package/ARMGDDNBrowser.ini"
+
       - uses: actions/upload-artifact@v4
         with:
           name: windows
-          path: build\build\Release\*
-
-  build_windows_arm64:
-    name: Windows Build (ARM64)
-    # Build natively on an ARM64 runner. Cross-compiling ARM64 from an x64 host
-    # needs the win64_msvc2022_arm64_cross_compiled kit, which aqtinstall 3.3.0
-    # (the latest release) cannot patch for Qt 6.10.x.
-    runs-on: windows-11-arm
-
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Qt (ARM64)
-        uses: jurplel/install-qt-action@v4
-        with:
-          version: ${{ env.QT_VERSION }}
-          host: 'windows_arm64'
-          target: 'desktop'
-          arch: 'win64_msvc2022_arm64'
-          modules: 'qtmultimedia'
-      - name: Build Rclone Browser
-        shell: pwsh
-        run: |
-          mkdir build
-          cd build
-          # Let CMake auto-detect the newest installed Visual Studio generator.
-          cmake -A ARM64 -DCMAKE_CONFIGURATION_TYPES="Release" -DCMAKE_PREFIX_PATH="$env:QT_ROOT_DIR" ..
-          cmake --build . --config Release
-          & "$env:QT_ROOT_DIR\bin\windeployqt.exe" --no-translations --no-compiler-runtime --no-svg ".\build\Release\RcloneBrowser.exe"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: windows-arm64
-          path: build\build\Release\*
-          
-  build_linux:
-    name: Linux Build (AppImage)
-    # Build on an older LTS than the Qt 6 minimum requires to keep the
-    # resulting AppImage's glibc/libstdc++ dependency as low as practical.
-    # ubuntu-22.04 is the oldest GitHub-hosted image that still satisfies
-    # Qt 6.10's toolchain requirements.
-    runs-on: ubuntu-22.04
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Qt
-        uses: jurplel/install-qt-action@v4
-        with:
-          version: ${{ env.QT_VERSION }}
-          host: 'linux'
-          target: 'desktop'
-          arch: 'linux_gcc_64'
-          modules: 'qtmultimedia'
-
-      - name: Install build and runtime dependencies
-        run: |
-          sudo apt update
-          sudo apt -y install \
-            build-essential cmake file patchelf \
-            libgl1-mesa-dev \
-            libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-image0 \
-            libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 \
-            libxcb-xinerama0 libxcb-xkb1
-
-      - name: Download linuxdeploy AppImage tools
-        run: |
-          mkdir -p "$HOME/linuxdeploy"
-          curl -L -o "$HOME/linuxdeploy/linuxdeploy" \
-            https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
-          curl -L -o "$HOME/linuxdeploy/linuxdeploy-plugin-qt" \
-            https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
-          curl -L -o "$HOME/linuxdeploy/linuxdeploy-plugin-appimage" \
-            https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/releases/download/continuous/linuxdeploy-plugin-appimage-x86_64.AppImage
-          # linuxdeploy expects its own executable, and its plugins, to be
-          # found under these exact names on PATH - the .AppImage suffix
-          # in the release asset names must not survive the download.
-          chmod +x "$HOME/linuxdeploy/"linuxdeploy*
-          echo "$HOME/linuxdeploy" >> "$GITHUB_PATH"
-
-      - name: Build Rclone Browser
-        run: |
-          mkdir build
-          cd build
-          cmake .. -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" -DCMAKE_INSTALL_PREFIX=/usr
-          make --jobs="$(nproc)"
-          make install DESTDIR="$GITHUB_WORKSPACE/AppDir"
-
-      - name: Build AppImage
-        env:
-          # No FUSE inside the GitHub Actions container - extract and run instead.
-          APPIMAGE_EXTRACT_AND_RUN: '1'
-        run: |
-          VERSION="$(cat VERSION)-$(git rev-parse --short HEAD)"
-          export VERSION
-
-          linuxdeploy \
-            --appdir AppDir \
-            --desktop-file=AppDir/usr/share/applications/rclone-browser.desktop \
-            --plugin qt \
-            --output appimage
-
-          mkdir -p build/build
-          mv ./*.AppImage "build/build/rclone-browser-${VERSION}-linux-x86_64.AppImage"
-
-      - uses: actions/upload-artifact@v4
-        with:
-         name: linux
-         path: build/build/*.AppImage
-         
-  build_macos:
-    name: macOS Build (Apple Silicon)
-    runs-on: macos-latest
-    
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Qt
-        uses: jurplel/install-qt-action@v4
-        with:
-          version: ${{ env.QT_VERSION }}
-          host: 'mac'
-          target: 'desktop'
-          arch: 'clang_64'
-          modules: 'qtmultimedia'
-      - name: Build Rclone Browser
-        run: |
-          mkdir build
-          cd build
-          # macos-latest runners are Apple Silicon; build natively for arm64.
-          cmake .. -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" -DCMAKE_OSX_ARCHITECTURES=arm64
-          make -j $(sysctl -n hw.ncpu)
-          cd build
-          "$QT_ROOT_DIR/bin/macdeployqt" rclone-browser.app -executable="rclone-browser.app/Contents/MacOS/rclone-browser"
-          mv rclone-browser.app Rclone\ Browser.app
-      - uses: actions/upload-artifact@v4
-        with:
-          name: macos
-          path: build/build/*
-        
-  build_freebsd:
-    name: FreeBSD Build
-    runs-on: ubuntu-latest
-    
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Development Tools and Build Rclone Browser
-        uses: vmactions/freebsd-vm@v1
-        with:
-          mem: 4096
-          usesh: true
-          prepare: |
-            env ASSUME_ALWAYS_YES=YES pkg update -f
-            env ASSUME_ALWAYS_YES=YES pkg install -y git cmake qt6-base qt6-multimedia
-          run: |
-            mkdir build
-            cd build
-            cmake ..
-            make
-            
-      - uses: actions/upload-artifact@v4
-        with:
-          name: freebsd
-          path: build/build/*
+          path: package/*
 
   create_release:
-    name: Create GitHub Release
+    name: Create Draft Release
     runs-on: ubuntu-latest
-    needs: [build_windows, build_windows_arm64, build_linux, build_macos, build_freebsd]
-    # action-create-tag and release-action push a tag/release back to the repo,
-    # which needs write access to repository contents. The default GITHUB_TOKEN
-    # is read-only unless we request it here (otherwise the tag push 403s).
+    needs: [build_windows]
+    # Only cut a release when manually dispatched (optionally with a version).
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    # release-action pushes a tag/release, which needs write access to contents.
     permissions:
       contents: write
 
     steps:
       - uses: actions/checkout@v4
-      - name: Create artifact directory
-        run: rm -rf /tmp/artifacts && mkdir /tmp/artifacts
+
       - uses: actions/download-artifact@v4
         with:
-          path: /tmp/artifacts
-      - name: Compress artifacts
+          name: windows
+          path: package
+
+      - name: Zip portable package
         run: |
-          pushd /tmp/artifacts
-          for i in *;do zip -r -0 $i.zip $i;done
-          popd
-          
-      - name: Get short commit
-        run: echo "SHORT_SHA=`echo ${GITHUB_SHA} | cut -c1-8`" >> $GITHUB_ENV
-        
-      - uses: rickstaa/action-create-tag@v1
+          V="${{ needs.build_windows.outputs.version }}"
+          cd package
+          zip -r -0 "../ARMGDDN Browser v${V}.zip" .
+          cd ..
+          ls -la "ARMGDDN Browser v${V}.zip"
+
+      - name: Create draft release
+        uses: ncipollo/release-action@v1
         with:
-          tag: release-${{ env.SHORT_SHA }}
-          tag_exists_error: false
-          
-      - uses: ncipollo/release-action@v1
-        with:
-          artifacts: "/tmp/artifacts/*.zip"
-          name: ARMGDDN Browser Autobuild For Commit ${{ env.SHORT_SHA }}
+          artifacts: "ARMGDDN Browser v*.zip"
+          name: ARMGDDN Browser v${{ needs.build_windows.outputs.version }}
+          tag: v${{ needs.build_windows.outputs.version }}
+          draft: true
+          allowUpdates: true
           omitBody: true
           generateReleaseNotes: true
-          prerelease: true
-          skipIfReleaseExists: true
-          tag: release-${{ env.SHORT_SHA }}

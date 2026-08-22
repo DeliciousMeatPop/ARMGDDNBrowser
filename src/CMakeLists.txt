@@ -125,8 +125,10 @@ ADD_MSVC_PRECOMPILED_HEADER(pch.h pch.cpp SOURCE)
 ADD_MSVC_PRECOMPILED_HEADER(pch.h pch.cpp MOC_OUT)
 
 if(WIN32)
-  add_executable(RcloneBrowser WIN32 ${SOURCE} ${BACKEND} ${OTHER} ${MOC} ${MOC_OUT} ${UI_OUT} ${MOC_OUT} ${QRC_OUT})
-  target_link_libraries(RcloneBrowser Qt6::Widgets Qt6::Network ${OPTIONAL_QT_LIBS})
+  # Executable is named ARMGDDNBrowser so that a blank ARMGDDNBrowser.ini next
+  # to it enables portable mode (portable detection uses the exe's basename).
+  add_executable(ARMGDDNBrowser WIN32 ${SOURCE} ${BACKEND} ${OTHER} ${MOC} ${MOC_OUT} ${UI_OUT} ${MOC_OUT} ${QRC_OUT})
+  target_link_libraries(ARMGDDNBrowser Qt6::Widgets Qt6::Network ${OPTIONAL_QT_LIBS})
 elseif(APPLE)
   set_source_files_properties(icon.icns PROPERTIES MACOSX_PACKAGE_LOCATION "Resources")
   add_executable(rclone-browser MACOSX_BUNDLE ${SOURCE} ${BACKEND} ${OTHER} ${MOC} ${MOC_OUT} ${UI_OUT} ${MOC_OUT} ${QRC_OUT} icon.icns)
