@@ -78,9 +78,20 @@ private:
 
   void clearPreemptiveQueues();
 
-  // ARMGDDN Browser: filter the (loaded) tree by name. Returns true if the
-  // subtree under parent contains a match.
-  void filterTree(const QString &query);
-  bool filterIndex(const QModelIndex &parent, const QString &query);
+  // ARMGDDN Browser: debounced, background search inside the remote.
+  // Typing restarts a 2s timer; when it fires the matching set is computed in
+  // chunks (so the UI stays responsive and the tree can still be browsed) and
+  // a "Show N results" button appears. Clicking it applies the filter.
   void unhideAll(const QModelIndex &parent);
+  void onSearchTextChanged(const QString &query);
+  void startSearchComputation();
+  void searchStep();
+  void applySearchResults();
+
+  QTimer *mSearchDebounce = nullptr;
+  QTimer *mSearchWorker = nullptr;
+  QString mSearchQuery;
+  QList<QPersistentModelIndex> mSearchStack;
+  QSet<QPersistentModelIndex> mSearchVisible;
+  int mSearchMatchCount = 0;
 };

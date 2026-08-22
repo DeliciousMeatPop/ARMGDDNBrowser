@@ -299,6 +299,11 @@ MainWindow::MainWindow() {
   if (settings->contains("MainWindow/geometry")) {
     restoreGeometry(settings->value("MainWindow/geometry").toByteArray());
   }
+  // ARMGDDN Browser: optional "config check on start" - run ARMGDDNBrowser.cmd
+  // (if it exists next to the app) and wait for it to finish BEFORE we resolve
+  // the config, so a freshly-downloaded ag.conf is picked up.
+  runConfigCheckOnStart();
+
   // ARMGDDN Browser: rclone binary and config are always taken from the
   // application folder (AG/rclone + ag.conf/rclone.conf). They are never
   // user-configurable.
@@ -827,29 +832,6 @@ MainWindow::MainWindow() {
 
   QTimer::singleShot(0, ui.remotes, SLOT(setFocus()));
 
-  // ARMGDDN Browser: optional "config check on start" - run update.bat (if it
-  // exists next to the app) and wait for it to finish before we read the
-  // config. Used to refresh the bundled rclone config before opening.
-  if (settings->value("Settings/checkRcloneUpdates", true).toBool()) {
-    QString updateBat = QDir(GetAppDir()).filePath("update.bat");
-    if (QFileInfo(updateBat).exists()) {
-      QProcess updateProcess;
-      updateProcess.setWorkingDirectory(GetAppDir());
-#ifdef Q_OS_WIN
-      updateProcess.setProgram("cmd.exe");
-      updateProcess.setArguments(QStringList()
-                                 << "/c" << QDir::toNativeSeparators(updateBat));
-#else
-      // non-Windows dev convenience: run it through a shell
-      updateProcess.setProgram("sh");
-      updateProcess.setArguments(QStringList() << updateBat);
-#endif
-      updateProcess.start();
-      // block until the config check completes (or 10 minutes elapse)
-      updateProcess.waitForFinished(600000);
-    }
-  }
-
   // ARMGDDN Browser: the rclone/AG binary is auto-detected from the
   // application folder, so we can go straight to checking its version.
   rcloneGetVersion();
@@ -1232,9 +1214,40 @@ void MainWindow::rcloneGetVersion() {
            QIODevice::ReadOnly);
 }
 
+void MainWindow::runConfigCheckOnStart() {
+  auto settings = GetSettings();
+  if (!settings->value("Settings/checkRcloneUpdates", true).toBool()) {
+    return;
+  }
+  QString configCmd = QDir(GetAppDir()).filePath("ARMGDDNBrowser.cmd");
+  if (!QFileInfo(configCmd).exists()) {
+    return;
+  }
+  QProcess updateProcess;
+  updateProcess.setWorkingDirectory(GetAppDir());
+#ifdef Q_OS_WIN
+  updateProcess.setProgram("cmd.exe");
+  updateProcess.setArguments(QStringList()
+                             << "/c" << QDir::toNativeSeparators(configCmd));
+#else
+  // non-Windows dev convenience: run it through a shell
+  updateProcess.setProgram("sh");
+  updateProcess.setArguments(QStringList() << configCmd);
+#endif
+  updateProcess.start();
+  // block until the config check completes (or 10 minutes elapse)
+  updateProcess.waitForFinished(600000);
+}
+
 void MainWindow::rcloneListRemotes() {
 
   ui.remotes->clear();
+
+  // ARMGDDN Browser: re-detect the binary and config on every refresh so that
+  // if ag.conf/rclone.conf (or AG/rclone) appeared after start-up - e.g. a
+  // config check downloaded it - hitting Refresh picks it up.
+  SetRclone(AutoDetectRclone());
+  SetRcloneConf(AutoDetectRcloneConf());
 
   auto settings = GetSettings();
   QString mIconsLayout = settings->value("Settings/iconsLayout").toString();
