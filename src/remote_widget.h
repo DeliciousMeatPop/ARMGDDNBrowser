@@ -21,13 +21,6 @@ signals:
                    const QString &remote, const QStringList &args,
                    const QString &uniqueId, const QString &transferMode,
                    const QString &requestId);
-  void addStream(const QString &remote, const QString &stream,
-                 const QString &remoteType);
-  void addNewMount(const QString &remote, const QString &folder,
-                   const QString &remoteType, const QStringList &args,
-                   const QString &script, const QString &uniqueId,
-                   const QString &info);
-  void addSavedTransfer(const QString &uniqueId, bool dryRun, bool addToQueue);
 
 private slots:
 

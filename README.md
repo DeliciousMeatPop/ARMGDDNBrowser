@@ -2,9 +2,44 @@
 
 [![Travis CI Build Status][img1]][1] [![AppVeyor Build Status][img2]][2] [![Downloads][img3]][3] [![Release][img4]][4] <img src="https://img.shields.io/badge/Qt-cmake-green.svg"> [![Codacy Badge](https://api.codacy.com/project/badge/Grade/e22f828fc0c94dcf9ddb3d38701d177f)](https://www.codacy.com/manual/kapitainsky/RcloneBrowser?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=kapitainsky/RcloneBrowser&amp;utm_campaign=Badge_Grade) [![License][img5]][5] [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.me/kapitainsky)
 
-Rclone browser
+ARMGDDN Browser
 ==============
-Simple cross platform GUI for [rclone](https://rclone.org/) command line tool.
+ARMGDDN Browser is a stripped-down, download-focused fork of
+[Rclone Browser](https://github.com/kapitainsky/RcloneBrowser) (originally by
+Martins Mozeiko), edited with ❤️ by DMP of ARMGDDN Games.
+
+It is a lean GUI for browsing and downloading from [rclone](https://rclone.org/)
+remotes. Compared to Rclone Browser it removes the config editor, mounting,
+streaming, uploads and other remote-modifying actions, and the tasks / queue /
+scheduler system - leaving a simple browser plus downloads.
+
+### What changed
+
+*   **Self-contained** - the app always uses `AG`/`rclone` (`.exe` on Windows)
+    and `ag.conf`/`rclone.conf` found next to the executable. There is no way
+    to point it at other files.
+*   **Read-only browsing** - each remote view only exposes Refresh, Download,
+    Size, Tree, Link, Export and Info. Mkdir, rename, copy, move, delete,
+    mount, stream, upload and the tools menu are gone, as are the Google Drive
+    "Shared with me" / "Trash" dropdowns.
+*   **Downloads** - clicking Download only asks for the destination folder.
+    Every other rclone option is taken from the ini (see below).
+*   **Remote folders** - remotes can be grouped under collapsible folders in
+    the browser by adding wildcard patterns to a `[RemoteFolders]` group in the
+    ini, for example:
+
+    ```ini
+    [RemoteFolders]
+    Titles=TO-*      ; remotes whose name starts with TO-
+    HD=*hd*          ; remotes whose name contains hd
+    4K=*4k           ; remotes whose name ends with 4k
+    ```
+
+    Grouping only changes how remotes are displayed - the rclone config is
+    never touched.
+*   **Options via the ini** - default rclone/download options are no longer in
+    Preferences. In portable mode set them directly in the ini, e.g.
+    `Settings/defaultRcloneOptions` and `Settings/defaultDownloadOptions`.
 
 Supports macOS, Windows, GNU/Linux and BSD family.
 

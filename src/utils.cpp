@@ -259,6 +259,66 @@ QString GetRclone() {
 
 void SetRclone(const QString &rclone) { gRclone = rclone.trimmed(); }
 
+// ARMGDDN Browser: folder that contains the application executable. On macOS
+// the executable lives inside the .app bundle so we walk up to the folder that
+// holds the bundle, matching where a portable rclone/config would sit.
+QString GetAppDir() {
+#ifdef Q_OS_MACOS
+  return QDir(qApp->applicationDirPath() + "/../../..").absolutePath();
+#else
+  return qApp->applicationDirPath();
+#endif
+}
+
+// ARMGDDN Browser: always resolve the rclone binary from the application
+// folder. Prefer the ARMGDDN-branded AG binary, then a plain rclone binary.
+QString AutoDetectRclone() {
+  QDir dir(GetAppDir());
+  QStringList candidates;
+#ifdef Q_OS_WIN
+  candidates << "AG.exe"
+             << "rclone.exe";
+#else
+  candidates << "AG"
+             << "rclone"
+             << "AG.exe"
+             << "rclone.exe";
+#endif
+  for (const QString &c : candidates) {
+    QString p = dir.filePath(c);
+    if (QFileInfo(p).exists()) {
+      return p;
+    }
+  }
+  // fall back to whatever is on PATH so development builds still work
+  QString onPath = QStandardPaths::findExecutable("rclone");
+  if (!onPath.isEmpty()) {
+    return onPath;
+  }
+#ifdef Q_OS_WIN
+  return dir.filePath("rclone.exe");
+#else
+  return dir.filePath("rclone");
+#endif
+}
+
+// ARMGDDN Browser: always resolve the config from the application folder.
+// Prefer ag.conf, then rclone.conf. If neither exists yet default to
+// rclone.conf next to the executable so rclone can create it there.
+QString AutoDetectRcloneConf() {
+  QDir dir(GetAppDir());
+  QStringList candidates;
+  candidates << "ag.conf"
+             << "rclone.conf";
+  for (const QString &c : candidates) {
+    QString p = dir.filePath(c);
+    if (QFileInfo(p).exists()) {
+      return p;
+    }
+  }
+  return dir.filePath("rclone.conf");
+}
+
 void UseRclonePassword(QProcess *process) {
   if (!gRclonePassword.isEmpty()) {
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();

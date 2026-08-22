@@ -32,17 +32,10 @@ set(UI
   main_window.ui
   remote_widget.ui
   transfer_dialog.ui
-  mount_dialog.ui
   export_dialog.ui
-  check_dialog.ui
-  dedupe_dialog.ui
   progress_dialog.ui
   job_widget.ui
-  mount_widget.ui
-  stream_widget.ui
   preferences_dialog.ui
-  scheduler_widget.ui
-  delete_progress_dialog.ui
   remote_folder_dialog.ui
 )
 
@@ -50,23 +43,13 @@ set(MOC
   main_window.h
   remote_widget.h
   transfer_dialog.h
-  mount_dialog.h
   export_dialog.h
-  check_dialog.h
-  dedupe_dialog.h
   progress_dialog.h
   job_widget.h
-  mount_widget.h
-  stream_widget.h
   preferences_dialog.h
   icon_cache.h
   list_of_job_options.h
   item_model.h
-  qcron.h
-  scheduler_widget.h
-  hours_spinbox.h
-  minutes_spinbox.h
-  delete_progress_dialog.h
   file_dialog.h
   remote_folder_dialog.h
 )
@@ -76,8 +59,6 @@ set(OTHER
   utils.h
   job_options.h
   global.h
-  qcronfield.h
-  qcronnode.h
 )
 
 set(SOURCE
@@ -86,27 +67,15 @@ set(SOURCE
   main_window.cpp
   remote_widget.cpp
   transfer_dialog.cpp
-  mount_dialog.cpp
   export_dialog.cpp
-  check_dialog.cpp
-  dedupe_dialog.cpp
   progress_dialog.cpp
   job_widget.cpp
-  mount_widget.cpp
-  stream_widget.cpp
   preferences_dialog.cpp
   icon_cache.cpp
   item_model.cpp
   utils.cpp
   job_options.cpp
   list_of_job_options.cpp
-  qcron.cpp
-  qcronfield.cpp
-  qcronnode.cpp
-  scheduler_widget.cpp
-  hours_spinbox.cpp
-  minutes_spinbox.cpp
-  delete_progress_dialog.cpp
   file_dialog.cpp
   remote_folder_dialog.cpp
 )

@@ -10,15 +10,7 @@ public:
   PreferencesDialog(QWidget *parent = nullptr);
   ~PreferencesDialog();
 
-  QString getRclone() const;
-  QString getRcloneConf() const;
-  QString getStream() const;
-  QString getMount() const;
   QString getDefaultDownloadDir() const;
-  QString getDefaultUploadDir() const;
-  QString getDefaultDownloadOptions() const;
-  QString getDefaultUploadOptions() const;
-  QString getDefaultRcloneOptions() const;
 
   bool getCheckRcloneBrowserUpdates() const;
   bool getCheckRcloneUpdates() const;
@@ -53,14 +45,6 @@ public:
 
   bool getPreemptiveLoading() const;
   QString getPreemptiveLoadingLevel() const;
-
-  QString getQueueScript() const;
-  QString getTransferOnScript() const;
-  QString getTransferOffScript() const;
-
-  bool getQueueScriptRun() const;
-  bool getJobStartScriptRun() const;
-  bool getJobLastFinishedScriptRun() const;
 
 private:
   Ui::PreferencesDialog ui;

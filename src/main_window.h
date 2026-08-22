@@ -18,35 +18,16 @@ public:
 
 private slots:
   void rcloneGetVersion();
-  void rcloneConfig();
   void rcloneListRemotes();
-  void listTasks();
 
   void addTransfer(const QString &message, const QString &source,
                    const QString &dest, const QStringList &args,
                    const QString &uniqueId, const QString &transferMode,
                    const QString &requestId);
-  void addStream(const QString &remote, const QString &stream,
-                 const QString &remoteType);
-
-  void addNewMount(const QString &remote, const QString &folder,
-                   const QString &remoteType, const QStringList &args,
-                   const QString &script, const QString &uniqueId,
-                   const QString &info);
-
-  void addScheduler(const QString &taskId, const QString &taskName,
-                    const QStringList &args);
-
-  void addSavedTransfer(const QString &uniqueId, bool dryRun, bool addToQueue);
 
   void runScript(const QString &script);
 
   void slotCloseTab(int index);
-
-  bool saveQueueFile(void);
-  bool saveSchedulerFile(void);
-
-  void autoStartMounts(void);
 
   // quit RB but only when all processes finished
   void quitApp(void);
@@ -77,20 +58,7 @@ private:
   // keep track of number of active transfers
   int mTransferJobCount = 0;
 
-  // false = Queue Paused, true = Queue running
-  bool mQueueStatus = false;
-
-  // number of schedulers
-  int mSchedulersCount = 0;
-  int mRunningSchedulersCount = 0;
-
-  // number of queued tasks
-  int mQueueCount = 0;
-  // is queued task running
-  bool mQueueTaskRunning = false;
-
-  // make queue logic aware that app is quiting
-  // so job is not removed from the queue
+  // make logic aware that app is quiting
   bool mAppQuittingStatus = false;
 
   // don't sort then stopping all transfers
@@ -104,15 +72,8 @@ private:
   QList<QListWidgetItem *> sortListWidget(const QList<QListWidgetItem *> &list,
                                           bool sortOrder = false);
 
-  // set screen buttons logic mess in one place
-  void setQueueButtons(void);
-  void setTasksButtons(void);
-
   void addEmptyJobsMessage();
 
-  void runItem(JobOptionsListWidgetItem *item, const QString &transferMode,
-               const QString &requestId, bool dryrun = false);
-  void editSelectedTask();
   QIcon mUploadIcon;
   QIcon mDownloadIcon;
   QIcon mMountIcon;
@@ -122,21 +83,12 @@ private:
   MacOsPowerSaving *mMacOsPowerSaving;
 #endif
 
-  // used for tasks transitions - prevent race conditions
+  // prevent race conditions
   QMutex mMutex;
-  QMutex mSaveQueueFileMutex;
-  QMutex mSaveSchedulerFileMutex;
-  QMutex mStopTaskMutex;
-  QMutex mRunTaskMutex;
-  QMutex mRunItemMutex;
   QMutex mJobsSortMutex;
 
   // if waiting for processes we show dialog - this is used to calculate delay
   int mQuitInfoDelay = 0;
-
-  void addTasksToQueue();
-
-  void restoreSchedulersFromFile();
 
   void sortJobs();
   bool mJobsTimeSortOrder = false;

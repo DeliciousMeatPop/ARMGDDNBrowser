@@ -15,6 +15,13 @@ void SetRclone(const QString &rclone);
 QStringList GetRcloneConf();
 void SetRcloneConf(const QString &rcloneConf);
 
+// ARMGDDN Browser: the rclone binary and config are always looked for next to
+// the application executable. The binary is AG(.exe) or rclone(.exe) and the
+// config is ag.conf or rclone.conf - no user configuration of these paths.
+QString GetAppDir();
+QString AutoDetectRclone();
+QString AutoDetectRcloneConf();
+
 void UseRclonePassword(QProcess *process);
 void SetRclonePassword(const QString &rclonePassword);
 

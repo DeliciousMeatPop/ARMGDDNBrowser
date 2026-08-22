@@ -78,9 +78,9 @@ int main(int argc, char *argv[]) {
 
   QApplication app(argc, argv);
 
-  //  app.setApplicationDisplayName("Rclone Browser");
-  app.setApplicationName("rclone-browser");
-  app.setOrganizationName("rclone-browser");
+  //  app.setApplicationDisplayName("ARMGDDN Browser");
+  app.setApplicationName("ARMGDDN Browser");
+  app.setOrganizationName("ARMGDDN Games");
   app.setWindowIcon(QIcon(":/icons/icon.png"));
 
 // initialize SSL libraries
@@ -405,7 +405,7 @@ int main(int argc, char *argv[]) {
     // if already running display warning and quit
     QMessageBox msgBox;
     msgBox.setIcon(QMessageBox::Warning);
-    msgBox.setText("Rclone Browser is already running."
+    msgBox.setText("ARMGDDN Browser is already running."
                    "\r\n\nOnly one instance is allowed.");
     msgBox.exec();
     return static_cast<int>(
