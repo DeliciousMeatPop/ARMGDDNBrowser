@@ -121,20 +121,20 @@
           <item>
            <widget class="QCheckBox" name="checkRcloneBrowserUpdates">
             <property name="toolTip">
-             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;check daily for Rclone Browser availability&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             <string>Check daily for a new ARMGDDN Browser release</string>
             </property>
             <property name="text">
-             <string>Check for Rclone Browser updates</string>
+             <string>Check for ARMGDDN Browser updates</string>
             </property>
            </widget>
           </item>
           <item>
            <widget class="QCheckBox" name="checkRcloneUpdates">
             <property name="toolTip">
-             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;check daily for rclone availability&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             <string>Run update.bat (if present next to the app) before ARMGDDN Browser opens</string>
             </property>
             <property name="text">
-             <string>Check for rclone updates</string>
+             <string>Run a config check on start</string>
             </property>
            </widget>
           </item>
