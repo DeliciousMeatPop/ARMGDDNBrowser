@@ -62,15 +62,26 @@ jobs:
       - name: Stage portable package
         shell: bash
         run: |
-          mkdir -p package
-          cp -r build/build/Release/* package/
-          # A blank ARMGDDNBrowser.ini next to ARMGDDNBrowser.exe makes the
-          # app run in portable mode.
-          : > "package/ARMGDDNBrowser.ini"
+          mkdir -p "package/ARMGDDN Browser"
+          cp -r build/build/Release/* "package/ARMGDDN Browser/"
+          # An ARMGDDNBrowser.ini next to ARMGDDNBrowser.exe makes the app run
+          # in portable mode. It carries only comments (effectively blank) - a
+          # zero-byte file can be dropped by upload-artifact, so we add a header.
+          printf '%s\n' \
+            '; ARMGDDN Browser portable configuration' \
+            '; This file existing next to ARMGDDNBrowser.exe enables portable mode.' \
+            '; Define mirror folders under a [RemoteFolders] group, e.g.:' \
+            ';   [RemoteFolders]' \
+            ';   Titles=TO-*' \
+            ';   Stuff=Stuff-* / ftp' \
+            > "package/ARMGDDN Browser/ARMGDDNBrowser.ini"
 
+      # Name the artifact after the release so downloading it from the Actions
+      # run gives "ARMGDDN.Browser.vX.X.X.zip", not "windows.zip"; the "ARMGDDN
+      # Browser" folder is preserved inside it.
       - uses: actions/upload-artifact@v4
         with:
-          name: windows
+          name: ARMGDDN.Browser.v${{ steps.ver.outputs.version }}
           path: package/*
 
   create_release:
@@ -88,21 +99,22 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: windows
+          name: ARMGDDN.Browser.v${{ needs.build_windows.outputs.version }}
           path: package
 
       - name: Zip portable package
         run: |
           V="${{ needs.build_windows.outputs.version }}"
           cd package
-          zip -r -0 "../ARMGDDN Browser v${V}.zip" .
+          # package/ contains the "ARMGDDN Browser" folder; keep it inside the zip
+          zip -r -0 "../ARMGDDN.Browser.v${V}.zip" "ARMGDDN Browser"
           cd ..
-          ls -la "ARMGDDN Browser v${V}.zip"
+          ls -la "ARMGDDN.Browser.v${V}.zip"
 
       - name: Create draft release
         uses: ncipollo/release-action@v1
         with:
-          artifacts: "ARMGDDN Browser v*.zip"
+          artifacts: "ARMGDDN.Browser.v*.zip"
           name: ARMGDDN Browser v${{ needs.build_windows.outputs.version }}
           tag: v${{ needs.build_windows.outputs.version }}
           draft: true
