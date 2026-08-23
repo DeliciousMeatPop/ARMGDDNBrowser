@@ -20,6 +20,33 @@ QString NormalizeRcloneStatsLine(const QString &line) {
 
   return line;
 }
+
+// Parse an rclone human size like "1.234 GiB", "512 MiB", "42 B", "1.2Gi" into
+// bytes. Returns -1 if it cannot be parsed.
+double parseHumanSize(const QString &s) {
+  static const QRegularExpression re(
+      R"(([0-9]+(?:\.[0-9]+)?)\s*([KMGTP]?)i?B?)",
+      QRegularExpression::CaseInsensitiveOption);
+  QRegularExpressionMatch m = re.match(s.trimmed());
+  if (!m.hasMatch()) {
+    return -1;
+  }
+  double v = m.captured(1).toDouble();
+  QString unit = m.captured(2).toUpper();
+  double mult = 1.0;
+  if (unit == "K") {
+    mult = 1024.0;
+  } else if (unit == "M") {
+    mult = 1024.0 * 1024;
+  } else if (unit == "G") {
+    mult = 1024.0 * 1024 * 1024;
+  } else if (unit == "T") {
+    mult = 1024.0 * 1024 * 1024 * 1024;
+  } else if (unit == "P") {
+    mult = 1024.0 * 1024 * 1024 * 1024 * 1024;
+  }
+  return v * mult;
+}
 } // namespace
 
 JobWidget::JobWidget(QProcess *process, const QString &info,
@@ -251,10 +278,22 @@ JobWidget::JobWidget(QProcess *process, const QString &info,
         ui.eta->setText(m.captured(5));
         ui.totalsize->setText(m.captured(2));
 
+        // Prefer a percentage we compute from the transferred / total bytes -
+        // rclone's own percent field can read a misleading value. Fall back to
+        // rclone's reported percent only if the sizes cannot be parsed.
+        double doneBytes = parseHumanSize(m.captured(1));
+        double totalBytes = parseHumanSize(m.captured(2));
+        QString pctText = m.captured(3);
+        if (doneBytes >= 0 && totalBytes > 0) {
+          int pct = qBound(0, int(qRound(doneBytes / totalBytes * 100.0)), 100);
+          pctText = QString::number(pct) + "%";
+          mLastOverallPercent = pct;
+        } else {
+          mLastOverallPercent = m.captured(3).remove('%').toInt();
+        }
         ui.progress_info->setStyleSheet(
             "QLabel { color: green; font-weight: bold;}");
-        ui.progress_info->setText("(" + m.captured(3) + ")");
-        mLastOverallPercent = m.captured(3).remove('%').toInt();
+        ui.progress_info->setText("(" + pctText + ")");
       } else if ((m = rxErrors.match(statsLine)).hasMatch()) {
         ui.errors->setText(m.captured(1));
 
@@ -284,28 +323,14 @@ JobWidget::JobWidget(QProcess *process, const QString &info,
         updateProgress(name, m.captured(2).toInt(), m.captured(3));
       } else if ((m = rxProgress2.match(statsLine)).hasMatch()) {
         QString name = m.captured(1).trimmed();
-        int pct = m.captured(2).toInt();
-        updateProgress(name, pct,
+        updateProgress(name, m.captured(2).toInt(),
                        "File name: " + name + "\nFile stats" +
                            m.captured(0).mid(m.captured(0).indexOf(':')));
-        // keep the collapsed header percent live even if the summary line
-        // does not carry an overall percentage
-        if (mLastOverallPercent < 0) {
-          ui.progress_info->setStyleSheet(
-              "QLabel { color: green; font-weight: bold;}");
-          ui.progress_info->setText("(" + QString::number(pct) + "%)");
-        }
       } else if ((m = rxProgress3.match(statsLine)).hasMatch()) {
         QString name = m.captured(1).trimmed();
-        int pct = qRound(m.captured(2).toDouble());
-        updateProgress(name, pct,
+        updateProgress(name, qRound(m.captured(2).toDouble()),
                        "File name: " + name + "\nFile stats" +
                            m.captured(0).mid(m.captured(0).indexOf(':')));
-        if (mLastOverallPercent < 0) {
-          ui.progress_info->setStyleSheet(
-              "QLabel { color: green; font-weight: bold;}");
-          ui.progress_info->setText("(" + QString::number(pct) + "%)");
-        }
       }
     }
   });
