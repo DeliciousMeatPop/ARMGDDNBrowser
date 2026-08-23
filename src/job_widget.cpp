@@ -332,6 +332,36 @@ JobWidget::JobWidget(QProcess *process, const QString &info,
                        "File name: " + name + "\nFile stats" +
                            m.captured(0).mid(m.captured(0).indexOf(':')));
       }
+
+      // ARMGDDN Browser: robustly keep the header percentage current.
+      // Modern rclone / AG.exe summary lines vary in their speed/ETA tail,
+      // which can stop the fully-anchored rxSize* patterns above from matching
+      // at all - leaving the header stuck at 0% even though the transfer is
+      // clearly moving (the per-file bars use a different pattern and still
+      // update). This lenient parse only needs the leading "X B / Y B, Z%"
+      // portion - the byte units tell it apart from the file-count line - and
+      // updates the header no matter what follows. It runs after the chain so
+      // it has the final say, and prefers a percentage computed from the
+      // transferred / total bytes over rclone's own (sometimes misleading)
+      // percent field.
+      static const QRegularExpression rxOverall(
+          R"(Transferred:\s+([0-9.]+\s*[KMGTP]?i?B)\s*/\s*([0-9.]+\s*[KMGTP]?i?B),\s*([0-9]+)\s*%)",
+          QRegularExpression::CaseInsensitiveOption);
+      QRegularExpressionMatch mo = rxOverall.match(statsLine);
+      if (mo.hasMatch()) {
+        double doneBytes = parseHumanSize(mo.captured(1));
+        double totalBytes = parseHumanSize(mo.captured(2));
+        int pct;
+        if (doneBytes >= 0 && totalBytes > 0) {
+          pct = qBound(0, int(qRound(doneBytes / totalBytes * 100.0)), 100);
+        } else {
+          pct = qBound(0, mo.captured(3).toInt(), 100);
+        }
+        mLastOverallPercent = pct;
+        ui.progress_info->setStyleSheet(
+            "QLabel { color: green; font-weight: bold;}");
+        ui.progress_info->setText("(" + QString::number(pct) + "%)");
+      }
     }
   });
 
