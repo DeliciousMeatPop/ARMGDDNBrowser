@@ -1173,15 +1173,57 @@ void MainWindow::rcloneGetVersion() {
                     compareVersion(latest.toStdString(), RCLONE_BROWSER_VERSION);
                 // latest version is greater than current
                 if (result == 1) {
-                  QMessageBox::information(
-                      this, "",
-                      QString(
-                          R"(<p>A new ARMGDDN Browser version is available</p>)"
-                          R"(<p>You have: v)" RCLONE_BROWSER_VERSION "<br />"
-                          R"(New version: v)" +
-                          latest +
-                          "</p>"
-                          R"(<p>Visit <a href="https://github.com/DeliciousMeatPop/ARMGDDNBrowser/releases/latest">releases</a> to download</p>)"));
+                  // Find the release .zip asset so we can offer an in-place
+                  // download & install.
+                  QString downloadUrl;
+                  QString assetName;
+                  QJsonValue assetsVal = document.object().value("assets");
+                  if (assetsVal.isArray()) {
+                    const QJsonArray assets = assetsVal.toArray();
+                    for (const QJsonValue &av : assets) {
+                      QJsonObject ao = av.toObject();
+                      QString n = ao.value("name").toString();
+                      if (n.endsWith(".zip", Qt::CaseInsensitive)) {
+                        downloadUrl =
+                            ao.value("browser_download_url").toString();
+                        assetName = n;
+                        break;
+                      }
+                    }
+                  }
+
+                  QMessageBox box(this);
+                  box.setIcon(QMessageBox::Information);
+                  box.setWindowTitle("ARMGDDN Browser");
+                  box.setTextFormat(Qt::RichText);
+                  box.setText(QString(
+                      R"(<p>A new ARMGDDN Browser version is available</p>)"
+                      R"(<p>You have: v)" RCLONE_BROWSER_VERSION "<br />"
+                      R"(New version: v)" +
+                      latest + "</p>"));
+
+                  QPushButton *installBtn = nullptr;
+                  if (!downloadUrl.isEmpty()) {
+                    installBtn = box.addButton("Download && Install",
+                                               QMessageBox::AcceptRole);
+                  }
+                  QPushButton *manualBtn =
+                      box.addButton("Open Releases to download manually",
+                                    QMessageBox::ActionRole);
+                  QPushButton *cancelBtn =
+                      box.addButton("Cancel", QMessageBox::RejectRole);
+                  box.setDefaultButton(installBtn ? installBtn : manualBtn);
+                  box.exec();
+
+                  if (box.clickedButton() == manualBtn) {
+                    QDesktopServices::openUrl(
+                        QUrl("https://github.com/DeliciousMeatPop/"
+                             "ARMGDDNBrowser/releases/latest"));
+                  } else if (installBtn &&
+                             box.clickedButton() == installBtn) {
+                    downloadAndInstallUpdate(downloadUrl, assetName);
+                  }
+                  (void)cancelBtn; // cancel = do nothing
                 };
               };
             };
@@ -1803,6 +1845,126 @@ void MainWindow::runScript(const QString &script) {
   QStringList scriptArgs = scriptList;
 
   p->start(scriptCmd, scriptArgs, QIODevice::ReadOnly);
+}
+
+void MainWindow::downloadAndInstallUpdate(const QString &url,
+                                          const QString &assetName) {
+  (void)assetName;
+  QString appDir = GetAppDir();
+  QString zipPath = QDir(appDir).filePath(".ag_update_download.zip");
+  QString extractDir = QDir(appDir).filePath(".ag_update_tmp");
+
+  // Download the release zip with a modal progress dialog.
+  QProgressDialog progress("Downloading update...", "Cancel", 0, 100, this);
+  progress.setWindowTitle("ARMGDDN Browser");
+  progress.setWindowModality(Qt::WindowModal);
+  progress.setMinimumDuration(0);
+  progress.setAutoClose(false);
+  progress.setAutoReset(false);
+  progress.setValue(0);
+
+  QNetworkAccessManager manager;
+  QNetworkReply *reply = manager.get(QNetworkRequest(QUrl(url)));
+
+  connect(reply, &QNetworkReply::downloadProgress, this,
+          [&](qint64 received, qint64 total) {
+            if (total > 0) {
+              progress.setMaximum(100);
+              progress.setValue(int(received * 100 / total));
+            } else {
+              // unknown length - keep it busy
+              progress.setMaximum(0);
+            }
+          });
+  connect(&progress, &QProgressDialog::canceled, reply,
+          &QNetworkReply::abort);
+
+  QEventLoop loop;
+  connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+  loop.exec();
+
+  const bool canceled = progress.wasCanceled();
+  const QNetworkReply::NetworkError netErr = reply->error();
+  const QString netErrStr = reply->errorString();
+  const QByteArray data = reply->readAll();
+  reply->deleteLater();
+  progress.close();
+
+  if (canceled) {
+    return; // user aborted - do nothing
+  }
+  if (netErr != QNetworkReply::NoError || data.isEmpty()) {
+    QMessageBox::warning(
+        this, "ARMGDDN Browser",
+        "Update download failed.\n\n" +
+            (netErr != QNetworkReply::NoError ? netErrStr
+                                              : QString("Empty response.")));
+    return;
+  }
+
+  QFile f(zipPath);
+  if (!f.open(QIODevice::WriteOnly) ||
+      f.write(data) != static_cast<qint64>(data.size())) {
+    QMessageBox::warning(this, "ARMGDDN Browser",
+                         "Could not save the update package to:\n" + zipPath);
+    return;
+  }
+  f.close();
+
+  // Write an updater script next to the app. It waits for this exe to exit,
+  // extracts the zip, copies everything EXCEPT ARMGDDNBrowser.ini over the
+  // install, cleans up, then relaunches the app. Paths are baked in (native
+  // separators) so there is no argument-quoting to worry about.
+  const QString nAppDir = QDir::toNativeSeparators(appDir);
+  const QString nZip = QDir::toNativeSeparators(zipPath);
+  const QString nExtract = QDir::toNativeSeparators(extractDir);
+
+  QString scriptPath = QDir(appDir).filePath(".ag_update.cmd");
+  QFile s(scriptPath);
+  if (!s.open(QIODevice::WriteOnly | QIODevice::Text)) {
+    QMessageBox::warning(this, "ARMGDDN Browser",
+                         "Could not write the updater script.");
+    return;
+  }
+  {
+    QTextStream ts(&s);
+    ts << "@echo off\r\n";
+    ts << "setlocal\r\n";
+    ts << ":waitloop\r\n";
+    ts << "tasklist /FI \"IMAGENAME eq ARMGDDNBrowser.exe\" 2>NUL | find /I "
+          "\"ARMGDDNBrowser.exe\" >NUL\r\n";
+    ts << "if not errorlevel 1 (\r\n";
+    ts << "  timeout /t 1 /nobreak >NUL\r\n";
+    ts << "  goto waitloop\r\n";
+    ts << ")\r\n";
+    ts << "powershell -NoProfile -ExecutionPolicy Bypass -Command "
+          "\"Expand-Archive -LiteralPath '"
+       << nZip << "' -DestinationPath '" << nExtract << "' -Force\"\r\n";
+    ts << "set \"SRC=" << nExtract << "\\ARMGDDN Browser\"\r\n";
+    ts << "if not exist \"%SRC%\\ARMGDDNBrowser.exe\" set \"SRC=" << nExtract
+       << "\"\r\n";
+    ts << "robocopy \"%SRC%\" \"" << nAppDir
+       << "\" /E /XF ARMGDDNBrowser.ini /R:3 /W:1 /NFL /NDL /NJH /NJS /NC /NS "
+          "/NP >NUL\r\n";
+    ts << "del \"" << nZip << "\" >NUL 2>&1\r\n";
+    ts << "rmdir /S /Q \"" << nExtract << "\" >NUL 2>&1\r\n";
+    ts << "start \"\" \"" << nAppDir << "\\ARMGDDNBrowser.exe\"\r\n";
+    ts << "del \"%~f0\" >NUL 2>&1\r\n";
+  }
+  s.close();
+
+  // Launch the updater detached and quit so it can replace the files.
+  bool started = QProcess::startDetached(
+      "cmd.exe",
+      QStringList() << "/c" << QDir::toNativeSeparators(scriptPath), appDir);
+  if (!started) {
+    QMessageBox::warning(this, "ARMGDDN Browser",
+                         "Could not start the updater.");
+    return;
+  }
+
+  mAppQuittingStatus = true;
+  qApp->quit();
 }
 
 void MainWindow::slotCloseTab(int index) {

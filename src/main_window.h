@@ -27,6 +27,11 @@ private slots:
 
   void runScript(const QString &script);
 
+  // ARMGDDN Browser: download the latest release zip, write an updater script,
+  // then quit so the script can replace the app in place (keeping the user's
+  // ARMGDDNBrowser.ini) and relaunch it.
+  void downloadAndInstallUpdate(const QString &url, const QString &assetName);
+
   // ARMGDDN Browser: a download hit a quota / rate limit - offer to retry from
   // a sibling mirror in the same folder.
   void offerMirrorRetry(const QString &source, const QString &dest,
