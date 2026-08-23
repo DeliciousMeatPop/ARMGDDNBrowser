@@ -92,6 +92,8 @@ private:
   QTimer *mSearchWorker = nullptr;
   QString mSearchQuery;
   QList<QPersistentModelIndex> mSearchStack;
-  QSet<QPersistentModelIndex> mSearchVisible;
+  // node identities (Item* via internalPointer) that must stay visible - much
+  // cheaper than persistent indexes and only ever compared, never dereferenced
+  QSet<const void *> mSearchVisible;
   int mSearchMatchCount = 0;
 };

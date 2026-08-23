@@ -748,14 +748,14 @@ void RemoteWidget::searchStep() {
     QString name = model->data(idx, Qt::DisplayRole).toString();
     if (name.contains(mSearchQuery, Qt::CaseInsensitive)) {
       ++mSearchMatchCount;
-      // mark this node and all of its ancestors visible
+      // mark this node and all of its ancestors visible (by Item* identity)
       QModelIndex a = idx;
       while (a.isValid() && a != mRootIndex) {
-        QPersistentModelIndex pa(a);
-        if (mSearchVisible.contains(pa)) {
+        const void *id = a.internalPointer();
+        if (mSearchVisible.contains(id)) {
           break; // ancestors already recorded
         }
-        mSearchVisible.insert(pa);
+        mSearchVisible.insert(id);
         a = a.parent();
       }
     }
@@ -785,33 +785,43 @@ void RemoteWidget::applySearchResults() {
   if (mSearchMatchCount == 0) {
     return;
   }
-  // apply the precomputed visible set to the view in one shot with painting
-  // disabled so the reload is as quick as possible
+
+  // Suppress preemptive loading and the tree's own signals while we apply the
+  // filter. expand() would otherwise fire the "expanded" handler for every
+  // folder we open, which kicks off preemptive rclone lsd/lsl processes for the
+  // whole result set - that is what froze the app.
+  bool prevPreemptive = mPreemptiveLoading;
+  mPreemptiveLoading = false;
+  bool prevBlocked = ui.tree->blockSignals(true);
   ui.tree->setUpdatesEnabled(false);
 
-  QList<QPersistentModelIndex> stack;
+  // Plain QModelIndex is safe here because the walk is synchronous (no event
+  // loop runs in between). We prune: a folder that is not in the visible set is
+  // hidden and we do not descend into it (its whole subtree is hidden with it).
+  QList<QModelIndex> stack;
   int rows = model->rowCount(mRootIndex);
   for (int i = 0; i < rows; ++i) {
-    stack.append(QPersistentModelIndex(model->index(i, 0, mRootIndex)));
+    stack.append(model->index(i, 0, mRootIndex));
   }
   while (!stack.isEmpty()) {
-    QPersistentModelIndex pidx = stack.takeLast();
-    if (!pidx.isValid()) {
-      continue;
-    }
-    QModelIndex idx = pidx;
-    bool visible = mSearchVisible.contains(pidx);
+    QModelIndex idx = stack.takeLast();
+    bool visible = mSearchVisible.contains(idx.internalPointer());
     ui.tree->setRowHidden(idx.row(), idx.parent(), !visible);
-    if (visible) {
-      ui.tree->expand(idx);
+    if (!visible) {
+      continue; // hidden subtree - no need to touch its descendants
     }
-    int childRows = model->rowCount(idx);
-    for (int i = 0; i < childRows; ++i) {
-      stack.append(QPersistentModelIndex(model->index(i, 0, idx)));
+    if (model->rowCount(idx) > 0) {
+      ui.tree->expand(idx);
+      int childRows = model->rowCount(idx);
+      for (int i = 0; i < childRows; ++i) {
+        stack.append(model->index(i, 0, idx));
+      }
     }
   }
 
   ui.tree->setUpdatesEnabled(true);
+  ui.tree->blockSignals(prevBlocked);
+  mPreemptiveLoading = prevPreemptive;
   ui.searchResults->hide();
 }
 
