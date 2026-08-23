@@ -3,6 +3,11 @@
 ARMGDDN Browser
 ===============
 
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/a39de7ef-c5af-4b3e-9666-f984eeba4edc" alt="ARMGDDN Browser" width="700">
+</p>
+
 A lean, download-focused GUI for browsing and pulling from [rclone](https://rclone.org/)
 remotes ("mirrors"), built for Windows.
 
