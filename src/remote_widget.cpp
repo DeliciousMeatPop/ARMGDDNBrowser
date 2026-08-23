@@ -714,15 +714,21 @@ void RemoteWidget::startSearchComputation() {
     return;
   }
 
-  // seed a depth-first walk over the currently loaded tree. The computation
-  // only reads the model (never touches the view) so the tree stays browsable
-  // while it runs.
+  // Seed the search one level down from the remote root: these remotes wrap
+  // their contents under a top-level folder (e.g. "PC3"), so the items worth
+  // searching are the children of the top-level folders, not the wrappers
+  // themselves. We only read the model (never touch the view) so the tree
+  // stays browsable while it runs.
   mSearchVisible.clear();
   mSearchMatchCount = 0;
   mSearchStack.clear();
-  int rows = model->rowCount(mRootIndex);
-  for (int i = 0; i < rows; ++i) {
-    mSearchStack.append(QPersistentModelIndex(model->index(i, 0, mRootIndex)));
+  int topRows = model->rowCount(mRootIndex);
+  for (int t = 0; t < topRows; ++t) {
+    QModelIndex top = model->index(t, 0, mRootIndex);
+    int childRows = model->rowCount(top);
+    for (int i = 0; i < childRows; ++i) {
+      mSearchStack.append(QPersistentModelIndex(model->index(i, 0, top)));
+    }
   }
 
   ui.searchResults->setEnabled(false);
@@ -737,6 +743,9 @@ void RemoteWidget::searchStep() {
   const int kBatch = 400;
   int processed = 0;
 
+  // ARMGDDN Browser: search matches the items one level down from the root
+  // (the folders directly inside each top-level wrapper) - it never descends
+  // further. That keeps it fast and unintrusive and never loads deeper levels.
   while (!mSearchStack.isEmpty() && processed < kBatch) {
     QPersistentModelIndex pidx = mSearchStack.takeLast();
     ++processed;
@@ -748,22 +757,14 @@ void RemoteWidget::searchStep() {
     QString name = model->data(idx, Qt::DisplayRole).toString();
     if (name.contains(mSearchQuery, Qt::CaseInsensitive)) {
       ++mSearchMatchCount;
-      // mark this node and all of its ancestors visible (by Item* identity)
-      QModelIndex a = idx;
-      while (a.isValid() && a != mRootIndex) {
-        const void *id = a.internalPointer();
-        if (mSearchVisible.contains(id)) {
-          break; // ancestors already recorded
-        }
-        mSearchVisible.insert(id);
-        a = a.parent();
+      mSearchVisible.insert(idx.internalPointer());
+      // also keep the wrapper (parent) visible so the match stays reachable
+      QModelIndex parent = idx.parent();
+      if (parent.isValid() && parent != mRootIndex) {
+        mSearchVisible.insert(parent.internalPointer());
       }
     }
-
-    int rows = model->rowCount(idx);
-    for (int i = 0; i < rows; ++i) {
-      mSearchStack.append(QPersistentModelIndex(model->index(i, 0, idx)));
-    }
+    // no recursion - one level only
   }
 
   if (mSearchStack.isEmpty()) {
@@ -787,35 +788,28 @@ void RemoteWidget::applySearchResults() {
   }
 
   // Suppress preemptive loading and the tree's own signals while we apply the
-  // filter. expand() would otherwise fire the "expanded" handler for every
-  // folder we open, which kicks off preemptive rclone lsd/lsl processes for the
-  // whole result set - that is what froze the app.
+  // filter, so nothing kicks off rclone lsd/lsl for the result set.
   bool prevPreemptive = mPreemptiveLoading;
   mPreemptiveLoading = false;
   bool prevBlocked = ui.tree->blockSignals(true);
   ui.tree->setUpdatesEnabled(false);
 
-  // Plain QModelIndex is safe here because the walk is synchronous (no event
-  // loop runs in between). We prune: a folder that is not in the visible set is
-  // hidden and we do not descend into it (its whole subtree is hidden with it).
-  QList<QModelIndex> stack;
-  int rows = model->rowCount(mRootIndex);
-  for (int i = 0; i < rows; ++i) {
-    stack.append(model->index(i, 0, mRootIndex));
-  }
-  while (!stack.isEmpty()) {
-    QModelIndex idx = stack.takeLast();
-    bool visible = mSearchVisible.contains(idx.internalPointer());
-    ui.tree->setRowHidden(idx.row(), idx.parent(), !visible);
-    if (!visible) {
-      continue; // hidden subtree - no need to touch its descendants
+  // One level down: keep only the wrapper folders that contain a match, expand
+  // them, and inside each show only the matching children.
+  int topRows = model->rowCount(mRootIndex);
+  for (int t = 0; t < topRows; ++t) {
+    QModelIndex top = model->index(t, 0, mRootIndex);
+    bool topVisible = mSearchVisible.contains(top.internalPointer());
+    ui.tree->setRowHidden(t, mRootIndex, !topVisible);
+    if (!topVisible) {
+      continue;
     }
-    if (model->rowCount(idx) > 0) {
-      ui.tree->expand(idx);
-      int childRows = model->rowCount(idx);
-      for (int i = 0; i < childRows; ++i) {
-        stack.append(model->index(i, 0, idx));
-      }
+    ui.tree->expand(top);
+    int childRows = model->rowCount(top);
+    for (int i = 0; i < childRows; ++i) {
+      QModelIndex c = model->index(i, 0, top);
+      bool cv = mSearchVisible.contains(c.internalPointer());
+      ui.tree->setRowHidden(i, top, !cv);
     }
   }
 
