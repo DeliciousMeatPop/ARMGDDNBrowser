@@ -78,10 +78,12 @@ private:
 
   void clearPreemptiveQueues();
 
-  // ARMGDDN Browser: debounced, background search inside the remote.
-  // Typing restarts a 2s timer; when it fires the matching set is computed in
-  // chunks (so the UI stays responsive and the tree can still be browsed) and
-  // a "Show N results" button appears. Clicking it applies the filter.
+  // ARMGDDN Browser: debounced, background search inside the remote. It matches
+  // the items one level down from the root (the folders inside each top-level
+  // wrapper, e.g. the games under "PC3"), never descending further - fast and
+  // unintrusive. Typing restarts a 2s timer; when it fires the matching set is
+  // computed off the UI thread and a "Show N results" button appears. Clicking
+  // it applies the filter.
   void unhideAll(const QModelIndex &parent);
   void onSearchTextChanged(const QString &query);
   void startSearchComputation();
