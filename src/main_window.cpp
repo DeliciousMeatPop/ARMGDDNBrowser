@@ -196,7 +196,7 @@ MainWindow::MainWindow() {
   mMacOsPowerSaving = new MacOsPowerSaving();
 #endif
 
-  this->setWindowTitle("ARMGDDN Browser");
+  this->setWindowTitle("ARMGDDN Browser v" RCLONE_BROWSER_VERSION);
 
   auto settings = GetSettings();
 
