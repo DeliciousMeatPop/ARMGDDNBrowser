@@ -575,6 +575,65 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
                      if (sel.count() == 1 && model->isFolder(sel.front())) {
                        checkLocal =
                            menu.addAction("Check Local Files Against Server");
+                       checkLocal->setIcon(QIcon(
+                           ":media/images/qbutton_icons/check" + img_add +
+                           ".png"));
+                     }
+
+                     // ARMGDDN Browser: Steam links for a game folder. Only a
+                     // game-level folder (PC#/Game, i.e. a child of a top-level
+                     // wrapper) is considered - matching the search scope. If it
+                     // holds an appid file it is a Steam game and we offer its
+                     // store / SteamDB / patchnotes pages; otherwise the submenu
+                     // is greyed out.
+                     QAction *aStore = nullptr;
+                     QAction *aDb = nullptr;
+                     QAction *aPatch = nullptr;
+                     QString steamAppId;
+                     QString steamBuildId;
+                     if (sel.count() == 1 && model->isFolder(sel.front())) {
+                       QModelIndex gIdx = sel.front();
+                       QModelIndex gParent = gIdx.parent();
+                       bool gameLevel = gParent.isValid() &&
+                                        gParent != mRootIndex &&
+                                        gParent.parent() == mRootIndex;
+                       if (gameLevel) {
+                         // build id from the folder name: " vDIGITS" with no
+                         // periods/letters (a real version string would not
+                         // match, so patchnotes stays greyed for non-games)
+                         static const QRegularExpression rxBuild(
+                             R"(\bv([0-9]+)(?=\s|$))");
+                         QString gName =
+                             model->data(gIdx, Qt::DisplayRole).toString();
+                         QRegularExpressionMatch bm = rxBuild.match(gName);
+                         if (bm.hasMatch()) {
+                           steamBuildId = bm.captured(1);
+                         }
+
+                         QString gPath =
+                             remote + ":" + model->path(gIdx).path();
+                         steamAppId = steamAppIdForFolder(gPath);
+
+                         QMenu *steam = menu.addMenu("Links");
+                         steam->setIcon(QIcon(
+                             ":media/images/qbutton_icons/link" + img_add +
+                             ".png"));
+                         QIcon linkIcon(":media/images/qbutton_icons/link" +
+                                        img_add + ".png");
+                         aStore = steam->addAction("Steam Store Page");
+                         aDb = steam->addAction("SteamDB Page");
+                         aPatch = steam->addAction("Patchnotes");
+                         aStore->setIcon(linkIcon);
+                         aDb->setIcon(linkIcon);
+                         aPatch->setIcon(linkIcon);
+
+                         bool isSteam = !steamAppId.isEmpty();
+                         aStore->setEnabled(isSteam);
+                         aDb->setEnabled(isSteam);
+                         aPatch->setEnabled(isSteam && !steamBuildId.isEmpty());
+                         // grey the whole submenu when it is not a Steam game
+                         steam->menuAction()->setEnabled(isSteam);
+                       }
                      }
 
                      menu.addSeparator();
@@ -585,7 +644,18 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
                      QAction *chosen =
                          menu.exec(ui.tree->viewport()->mapToGlobal(pos));
 
-                     if (chosen && chosen == checkLocal) {
+                     if (chosen && chosen == aStore) {
+                       QDesktopServices::openUrl(
+                           QUrl("https://store.steampowered.com/app/" +
+                                steamAppId + "/"));
+                     } else if (chosen && chosen == aDb) {
+                       QDesktopServices::openUrl(
+                           QUrl("https://steamdb.info/app/" + steamAppId + "/"));
+                     } else if (chosen && chosen == aPatch) {
+                       QDesktopServices::openUrl(
+                           QUrl("https://steamdb.info/patchnotes/" +
+                                steamBuildId + "/"));
+                     } else if (chosen && chosen == checkLocal) {
                        QModelIndex index = sel.front();
                        QDir path = model->path(index);
                        QString src = remote + ":" + path.path();
@@ -677,6 +747,36 @@ RemoteWidget::RemoteWidget(IconCache *iconCache, const QString &remote,
 }
 
 RemoteWidget::~RemoteWidget() {}
+
+QString RemoteWidget::steamAppIdForFolder(const QString &remotePath) {
+  // List just this folder (non-recursive, files only) and return the first
+  // entry whose name is all digits with no extension - that is the Steam appid
+  // file. Runs synchronously with a short timeout; a right-click briefly waits.
+  QProcess p;
+  UseRclonePassword(&p);
+  QStringList args;
+  args << "lsf" << remotePath << "--files-only" << GetRcloneConf()
+       << GetRemoteModeRcloneOptions() << GetShowHidden();
+  p.start(GetRclone(), args, QIODevice::ReadOnly);
+  if (!p.waitForStarted(3000)) {
+    return QString();
+  }
+  if (!p.waitForFinished(6000)) {
+    p.kill();
+    p.waitForFinished(1000);
+    return QString();
+  }
+  const QString out = QString::fromUtf8(p.readAllStandardOutput());
+  static const QRegularExpression digits(R"(^[0-9]+$)");
+  const QStringList lines = out.split('\n', Qt::SkipEmptyParts);
+  for (const QString &line : lines) {
+    const QString name = line.trimmed();
+    if (digits.match(name).hasMatch()) {
+      return name;
+    }
+  }
+  return QString();
+}
 
 void RemoteWidget::unhideAll(const QModelIndex &parent) {
   int rows = model->rowCount(parent);
