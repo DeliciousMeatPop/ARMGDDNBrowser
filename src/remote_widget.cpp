@@ -778,12 +778,21 @@ QString RemoteWidget::steamAppIdForFolder(const QString &remotePath) {
   return QString();
 }
 
-void RemoteWidget::unhideAll(const QModelIndex &parent) {
-  int rows = model->rowCount(parent);
-  for (int i = 0; i < rows; ++i) {
-    ui.tree->setRowHidden(i, parent, false);
-    unhideAll(model->index(i, 0, parent));
+void RemoteWidget::restoreSearchHidden() {
+  // Un-hide only the rows we actually hid. This touches already-loaded nodes
+  // exclusively and never calls rowCount() on an unloaded folder, so it cannot
+  // trigger the lazy rclone loading that used to freeze the app on clear.
+  if (mSearchHidden.isEmpty()) {
+    return;
   }
+  ui.tree->setUpdatesEnabled(false);
+  for (const QPersistentModelIndex &idx : mSearchHidden) {
+    if (idx.isValid()) {
+      ui.tree->setRowHidden(idx.row(), idx.parent(), false);
+    }
+  }
+  ui.tree->setUpdatesEnabled(true);
+  mSearchHidden.clear();
 }
 
 void RemoteWidget::onSearchTextChanged(const QString &query) {
@@ -794,13 +803,13 @@ void RemoteWidget::onSearchTextChanged(const QString &query) {
   mSearchMatchCount = 0;
   ui.searchResults->hide();
 
+  // any edit also drops a previously applied filter (restore just those rows)
+  restoreSearchHidden();
+
   QString q = query.trimmed();
   if (q.isEmpty()) {
-    // cleared - restore the full tree immediately
+    // cleared - nothing more to do; rows already restored above
     mSearchDebounce->stop();
-    ui.tree->setUpdatesEnabled(false);
-    unhideAll(mRootIndex);
-    ui.tree->setUpdatesEnabled(true);
     return;
   }
 
@@ -895,13 +904,17 @@ void RemoteWidget::applySearchResults() {
   ui.tree->setUpdatesEnabled(false);
 
   // One level down: keep only the wrapper folders that contain a match, expand
-  // them, and inside each show only the matching children.
+  // them, and inside each show only the matching children. We record every row
+  // we hide so clearing the search can restore exactly those rows without ever
+  // walking (and lazily loading) the rest of the tree.
+  mSearchHidden.clear();
   int topRows = model->rowCount(mRootIndex);
   for (int t = 0; t < topRows; ++t) {
     QModelIndex top = model->index(t, 0, mRootIndex);
     bool topVisible = mSearchVisible.contains(top.internalPointer());
     ui.tree->setRowHidden(t, mRootIndex, !topVisible);
     if (!topVisible) {
+      mSearchHidden.append(QPersistentModelIndex(top));
       continue;
     }
     ui.tree->expand(top);
@@ -910,6 +923,9 @@ void RemoteWidget::applySearchResults() {
       QModelIndex c = model->index(i, 0, top);
       bool cv = mSearchVisible.contains(c.internalPointer());
       ui.tree->setRowHidden(i, top, !cv);
+      if (!cv) {
+        mSearchHidden.append(QPersistentModelIndex(c));
+      }
     }
   }
 

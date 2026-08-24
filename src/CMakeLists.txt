@@ -52,6 +52,7 @@ set(MOC
   item_model.h
   file_dialog.h
   remote_folder_dialog.h
+  size_cache.h
 )
 
 set(OTHER
@@ -73,6 +74,7 @@ set(SOURCE
   preferences_dialog.cpp
   icon_cache.cpp
   item_model.cpp
+  size_cache.cpp
   utils.cpp
   job_options.cpp
   list_of_job_options.cpp

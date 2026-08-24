@@ -17,6 +17,14 @@ by **DMP of ARMGDDN Games**. The config editor, mounting, streaming, uploads and
 the tasks / queue / scheduler system are gone — what's left is a simple browser
 plus downloads.
 
+What's New
+----------
+
+<!-- HIGHLIGHTS:START -->
+_The latest release's highlights are filled in here automatically by the
+release workflow (from `RELEASE_HIGHLIGHTS.md`)._
+<!-- HIGHLIGHTS:END -->
+
 Links
 -----
 
