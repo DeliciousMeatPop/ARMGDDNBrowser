@@ -95,7 +95,12 @@ jobs:
       contents: write
 
     steps:
+      # Check out the dispatched branch (not a detached SHA) with full history so
+      # we can sync the README highlights and push the commit back.
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
 
       - uses: actions/download-artifact@v4
         with:
@@ -145,6 +150,42 @@ jobs:
 
           echo "----- release body -----"
           cat RELEASE_BODY.md
+
+      # Mirror the curated highlights into the README's "What's New" block and
+      # push it back to the branch, so the repo front page always shows the
+      # latest release's highlights. [skip ci] keeps this from re-triggering the
+      # build on push.
+      - name: Sync README highlights
+        env:
+          V: ${{ needs.build_windows.outputs.version }}
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os, re
+          v = os.environ["V"]
+          hl = open("RELEASE_HIGHLIGHTS.md", encoding="utf-8").read()
+          hl = re.sub(r"<!--.*?-->", "", hl, flags=re.S).strip()
+          block = ("<!-- HIGHLIGHTS:START -->\n"
+                   f"_Latest release: **v{v}**_\n\n"
+                   f"{hl}\n"
+                   "<!-- HIGHLIGHTS:END -->")
+          readme = open("README.md", encoding="utf-8").read()
+          new = re.sub(r"<!-- HIGHLIGHTS:START -->.*?<!-- HIGHLIGHTS:END -->",
+                       lambda m: block, readme, flags=re.S)
+          if new != readme:
+              open("README.md", "w", encoding="utf-8").write(new)
+              print("README updated")
+          else:
+              print("README unchanged")
+          PY
+
+          if ! git diff --quiet README.md; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add README.md
+            git commit -m "docs: sync README highlights for v${V} [skip ci]"
+            git push
+          fi
 
       - name: Create draft release
         uses: ncipollo/release-action@v1
