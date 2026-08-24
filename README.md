@@ -21,8 +21,13 @@ What's New
 ----------
 
 <!-- HIGHLIGHTS:START -->
-_The latest release's highlights are filled in here automatically by the
-release workflow (from `RELEASE_HIGHLIGHTS.md`)._
+_Latest release: **v0.0.8**_
+
+## Highlights
+
+
+
+-
 <!-- HIGHLIGHTS:END -->
 
 Links
