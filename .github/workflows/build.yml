@@ -111,6 +111,41 @@ jobs:
           cd ..
           ls -la "ARMGDDN.Browser.v${V}.zip"
 
+      # Build the release body = curated highlights (RELEASE_HIGHLIGHTS.md, which
+      # DMP edits before dispatching) followed by GitHub's auto-generated
+      # commit/PR list. This same body is what the in-app update popup shows as
+      # the changelog, so it stays user-facing.
+      - name: Compose release notes
+        id: notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          V="${{ needs.build_windows.outputs.version }}"
+
+          # Auto-generated "What's Changed" list (previous tag auto-detected).
+          GENERATED="$(gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            "repos/${{ github.repository }}/releases/generate-notes" \
+            -f tag_name="v${V}" \
+            -f target_commitish="${{ github.sha }}" \
+            --jq '.body' 2>/dev/null || true)"
+
+          {
+            if [ -f RELEASE_HIGHLIGHTS.md ]; then
+              # Strip HTML comments (author guidance) so they don't ship.
+              sed '/<!--/,/-->/d' RELEASE_HIGHLIGHTS.md
+              echo ""
+            fi
+            if [ -n "$GENERATED" ]; then
+              echo "$GENERATED"
+            fi
+          } > RELEASE_BODY.md
+
+          echo "----- release body -----"
+          cat RELEASE_BODY.md
+
       - name: Create draft release
         uses: ncipollo/release-action@v1
         with:
@@ -119,5 +154,4 @@ jobs:
           tag: v${{ needs.build_windows.outputs.version }}
           draft: true
           allowUpdates: true
-          omitBody: true
-          generateReleaseNotes: true
+          bodyFile: RELEASE_BODY.md

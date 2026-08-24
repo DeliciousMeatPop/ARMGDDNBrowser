@@ -1192,6 +1192,10 @@ void MainWindow::rcloneGetVersion() {
                     }
                   }
 
+                  // The release body is the changelog - show it on the popup.
+                  QString changelog =
+                      document.object().value("body").toString().trimmed();
+
                   QMessageBox box(this);
                   box.setIcon(QMessageBox::Information);
                   box.setWindowTitle("ARMGDDN Browser");
@@ -1201,6 +1205,13 @@ void MainWindow::rcloneGetVersion() {
                       R"(<p>You have: v)" RCLONE_BROWSER_VERSION "<br />"
                       R"(New version: v)" +
                       latest + "</p>"));
+                  if (!changelog.isEmpty()) {
+                    box.setInformativeText("<b>What's new in v" + latest +
+                                           ":</b>");
+                    // Full notes in a scrollable, expandable area (plain text so
+                    // the markdown from the release reads cleanly).
+                    box.setDetailedText(changelog);
+                  }
 
                   QPushButton *installBtn = nullptr;
                   if (!downloadUrl.isEmpty()) {
