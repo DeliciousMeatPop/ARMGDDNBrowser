@@ -1,10 +1,43 @@
 #include "item_model.h"
 #include "global.h"
 #include "icon_cache.h"
+#include "size_cache.h"
 #include "utils.h"
 #include <algorithm>
 
 namespace {
+
+// ARMGDDN Browser: build the mirror-independent size-cache key for a folder's
+// path. The path looks like "/PC3/Game v123 -ARMGDDN[/sub...]". We drop the
+// remote, take the first segment (the wrapper, e.g. "PC3") and reduce it to a
+// category by stripping the trailing mirror number ("PC3" -> "PC", "PCVR2" ->
+// "PCVR"), then append the rest of the path. So the same game folder resolves
+// to the same key on every mirror of that category and the size is shared.
+// Returns empty for the remote root (nothing above the wrapper to key on).
+QString sizeCacheKey(const QString &rawPath) {
+  QString p = rawPath;
+  while (p.startsWith('/')) {
+    p.remove(0, 1);
+  }
+  if (p.isEmpty()) {
+    return QString(); // root
+  }
+  const int slash = p.indexOf('/');
+  QString wrapper = slash < 0 ? p : p.left(slash);
+  QString rest = slash < 0 ? QString() : p.mid(slash + 1);
+
+  // category = wrapper without a trailing mirror number / separators
+  static const QRegularExpression rxNum(R"([\s._\-]*\d+\s*$)");
+  QString category = wrapper;
+  category.remove(rxNum);
+  category = category.trimmed();
+  if (category.isEmpty()) {
+    category = wrapper;
+  }
+
+  return category + "|" + rest;
+}
+
 static void advanceSpinner(QString &text) {
   int spinnerPos = (int)((size_t)text.length() - 2);
   QChar current = text[spinnerPos];
@@ -150,6 +183,14 @@ void ItemModel::refresh(const QModelIndex &index) {
   if (folderItem->isLoading()) {
     return;
   }
+  // A Refresh is the user saying "this may have changed": drop the cached size
+  // for this folder (and its subtree) and re-measure it, so an added file etc.
+  // is picked up rather than served stale from the cache.
+  QString key = sizeCacheKey(folderItem->path.path());
+  if (!key.isEmpty()) {
+    SizeCache::instance().invalidatePrefix(key);
+    folderItem->sizeState = Item::SizeNone;
+  }
   load(item->isFolder ? index : index.parent(), folderItem);
 }
 
@@ -288,6 +329,17 @@ QVariant ItemModel::data(const QModelIndex &index, int role) const {
         // ARMGDDN Browser: folder sizes are computed lazily in the background
         if (item->sizeState == Item::SizeDone) {
           return getNiceSize(item->size);
+        }
+        // Persistent, mirror-shared cache: a hit means a real prior measurement,
+        // so show it instantly instead of re-running rclone size.
+        quint64 cached = 0;
+        if (item->sizeState == Item::SizeNone &&
+            SizeCache::instance().get(sizeCacheKey(item->path.path()),
+                                      cached)) {
+          Item *mutableItem = const_cast<Item *>(item);
+          mutableItem->size = cached;
+          mutableItem->sizeState = Item::SizeDone;
+          return getNiceSize(cached);
         }
         requestFolderSize(index);
         return QStringLiteral("…");
@@ -636,6 +688,9 @@ void ItemModel::processSizeQueue() {
                     doc.object().contains("bytes")) {
                   it->size = static_cast<quint64>(
                       doc.object().value("bytes").toDouble());
+                  // remember it for next time, shared across mirrors
+                  SizeCache::instance().put(sizeCacheKey(it->path.path()),
+                                            it->size);
                 }
               }
               // mark done either way so we don't retry forever
