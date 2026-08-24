@@ -91,7 +91,11 @@ private:
   // unintrusive. Typing restarts a 2s timer; when it fires the matching set is
   // computed off the UI thread and a "Show N results" button appears. Clicking
   // it applies the filter.
-  void unhideAll(const QModelIndex &parent);
+  // Restore exactly the rows the last search hid. We must NOT walk the tree to
+  // un-hide: ItemModel::rowCount() lazily spawns rclone lsd/lsl for any unloaded
+  // folder, so a full traversal (the old unhideAll) force-loaded the entire
+  // remote at once and froze the UI - especially when clearing repeatedly.
+  void restoreSearchHidden();
   void onSearchTextChanged(const QString &query);
   void startSearchComputation();
   void searchStep();
@@ -105,4 +109,7 @@ private:
   // cheaper than persistent indexes and only ever compared, never dereferenced
   QSet<const void *> mSearchVisible;
   int mSearchMatchCount = 0;
+  // exact rows the applied filter hid, so clearing restores only those (never a
+  // full-tree walk, which would lazily load every folder)
+  QList<QPersistentModelIndex> mSearchHidden;
 };
