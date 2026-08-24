@@ -40,9 +40,17 @@ Features
   (see [Configuration](#configuration)). Grouped mirrors are shown in
   black-and-white and ungrouped ones in colour, so the folder boundary is
   obvious. Grouping is display-only — the rclone config is never touched.
-* **Search inside a remote.** A search box filters the tree by name. It waits
-  until you stop typing, computes matches in the background so the UI never
-  freezes, then offers a **Show N results** button to apply them.
+* **Search inside a remote.** A search box filters the mirror's game folders by
+  name. It searches one level down (the folders inside each top-level wrapper,
+  e.g. the games under `PC3`) — never the whole tree — so it stays fast and
+  unintrusive. It waits until you stop typing, computes matches in the
+  background so the UI never freezes, then offers a **Show N results** button to
+  apply them.
+* **Steam links.** Right-click a game folder to open its **Steam Store**,
+  **SteamDB** and **Patchnotes** pages. The app reads the numeric `appid` file
+  shipped inside the folder and the build id from the folder name
+  (`Game vBUILDID -ARMGDDN`); if there's no `appid` file it isn't a Steam game
+  and the links are greyed out.
 * **Folder sizes.** Folders show the size of their contents, computed lazily in
   the background so browsing stays responsive.
 * **Simple downloads.** Clicking **Download** just asks for the destination and
@@ -58,8 +66,13 @@ Features
 * **Config check on start.** Optionally runs `ARMGDDNBrowser.cmd` (next to the
   app) before opening, so a fresh `ag.conf` can be pulled down first. **Refresh**
   also re-detects the binary/config, so a config that appears later is picked up.
-* **Update check.** Optionally checks this repo's releases for a newer ARMGDDN
-  Browser.
+* **Update check with one-click install.** Optionally checks this repo's
+  releases for a newer ARMGDDN Browser. When one is found you can **Download &
+  Install** it in place — the app fetches the release zip, closes, runs a small
+  updater that replaces everything **except your `ARMGDDNBrowser.ini`**, and
+  relaunches automatically — or open the releases page to grab it manually.
+* **Version in the title bar.** The window title shows the running version
+  (`ARMGDDN Browser vX.Y.Z`), matching the About dialog.
 
 Configuration
 -------------
