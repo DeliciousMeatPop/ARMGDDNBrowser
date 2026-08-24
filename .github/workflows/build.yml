@@ -124,29 +124,53 @@ jobs:
         id: notes
         env:
           GH_TOKEN: ${{ github.token }}
+          V: ${{ needs.build_windows.outputs.version }}
         shell: bash
         run: |
-          V="${{ needs.build_windows.outputs.version }}"
-
           # Auto-generated "What's Changed" list (previous tag auto-detected).
-          GENERATED="$(gh api \
+          gh api \
             --method POST \
             -H "Accept: application/vnd.github+json" \
             "repos/${{ github.repository }}/releases/generate-notes" \
             -f tag_name="v${V}" \
             -f target_commitish="${{ github.sha }}" \
-            --jq '.body' 2>/dev/null || true)"
+            --jq '.body' > GENERATED_NOTES.md 2>/dev/null || : > GENERATED_NOTES.md
 
-          {
-            if [ -f RELEASE_HIGHLIGHTS.md ]; then
-              # Strip HTML comments (author guidance) so they don't ship.
-              sed '/<!--/,/-->/d' RELEASE_HIGHLIGHTS.md
-              echo ""
-            fi
-            if [ -n "$GENERATED" ]; then
-              echo "$GENERATED"
-            fi
-          } > RELEASE_BODY.md
+          # Clean the curated highlights: drop HTML comments, the "Highlights"
+          # heading, and any empty bullets. Write the cleaned highlights (shared
+          # with the README sync) and the full release body.
+          python3 - <<'PY'
+          import os, re
+          v = os.environ["V"]
+          raw = ""
+          if os.path.exists("RELEASE_HIGHLIGHTS.md"):
+              raw = open("RELEASE_HIGHLIGHTS.md", encoding="utf-8").read()
+          raw = re.sub(r"<!--.*?-->", "", raw, flags=re.S)
+          lines = []
+          for ln in raw.splitlines():
+              s = ln.strip()
+              if not s:
+                  continue
+              if s.lstrip("#").strip().lower() == "highlights":
+                  continue
+              if re.fullmatch(r"[-*]\s*", s):  # empty bullet
+                  continue
+              lines.append(ln.rstrip())
+          highlights = "\n".join(lines).strip()
+          open("HIGHLIGHTS_CLEAN.md", "w", encoding="utf-8").write(highlights)
+
+          gen = ""
+          if os.path.exists("GENERATED_NOTES.md"):
+              gen = open("GENERATED_NOTES.md", encoding="utf-8").read().strip()
+
+          parts = []
+          if highlights:
+              parts.append("## Highlights\n\n" + highlights)
+          if gen:
+              parts.append(gen)
+          open("RELEASE_BODY.md", "w", encoding="utf-8").write(
+              "\n\n".join(parts) + "\n")
+          PY
 
           echo "----- release body -----"
           cat RELEASE_BODY.md
@@ -163,11 +187,14 @@ jobs:
           python3 - <<'PY'
           import os, re
           v = os.environ["V"]
-          hl = open("RELEASE_HIGHLIGHTS.md", encoding="utf-8").read()
-          hl = re.sub(r"<!--.*?-->", "", hl, flags=re.S).strip()
+          hl = ""
+          if os.path.exists("HIGHLIGHTS_CLEAN.md"):
+              hl = open("HIGHLIGHTS_CLEAN.md", encoding="utf-8").read().strip()
+          inner = f"_Latest release: **v{v}**_"
+          if hl:
+              inner += "\n\n" + hl
           block = ("<!-- HIGHLIGHTS:START -->\n"
-                   f"_Latest release: **v{v}**_\n\n"
-                   f"{hl}\n"
+                   f"{inner}\n"
                    "<!-- HIGHLIGHTS:END -->")
           readme = open("README.md", encoding="utf-8").read()
           new = re.sub(r"<!-- HIGHLIGHTS:START -->.*?<!-- HIGHLIGHTS:END -->",
