@@ -78,6 +78,13 @@ private:
 
   void clearPreemptiveQueues();
 
+  // ARMGDDN Browser: Steam integration. A game folder (PC#/Game vBUILDID
+  // -ARMGDDN) contains an "appid" file - just digits, no extension - sitting
+  // next to the zip. If present, the folder is a Steam game and we can open its
+  // store / SteamDB / patchnotes pages. steamAppIdForFolder() lists just that
+  // one folder (non-recursive) and returns the appid, or empty if none.
+  QString steamAppIdForFolder(const QString &remotePath);
+
   // ARMGDDN Browser: debounced, background search inside the remote. It matches
   // the items one level down from the root (the folders inside each top-level
   // wrapper, e.g. the games under "PC3"), never descending further - fast and
