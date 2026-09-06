@@ -565,6 +565,12 @@ MainWindow::MainWindow() {
   QObject::connect(ui.linkBetaSite, &QAction::triggered, this, [=]() {
     QDesktopServices::openUrl(QUrl("https://ARMGDDNBrowser.com"));
   });
+  QObject::connect(ui.linkTutorialBrowser, &QAction::triggered, this, [=]() {
+    QDesktopServices::openUrl(QUrl("https://streamable.com/kg43ii"));
+  });
+  QObject::connect(ui.linkTutorialMultiZip, &QAction::triggered, this, [=]() {
+    QDesktopServices::openUrl(QUrl("https://streamable.com/p0klwi"));
+  });
   QObject::connect(ui.linkTelegram, &QAction::triggered, this, [=]() {
     QDesktopServices::openUrl(QUrl("https://t.me/ARMGDDNGames"));
   });
@@ -840,11 +846,9 @@ MainWindow::MainWindow() {
   QTimer::singleShot(0, this, [this]() {
     auto settings = GetSettings();
 
-    // CODE switches (Preferences > General > CODE). Space-separated flags for
-    // people who know them; --dont-nag-me suppresses this notice permanently.
-    const QString code = settings->value("Settings/code").toString();
-    if (code.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts)
-            .contains("--dont-nag-me")) {
+    // CODE switches (Preferences > General > CODE). --dont-nag-me (or --staff,
+    // which implies it) suppresses this notice permanently.
+    if (HasCodeFlag("--dont-nag-me")) {
       return;
     }
 
@@ -863,11 +867,16 @@ MainWindow::MainWindow() {
         R"(and every extra copy is one that someone else now can't grab.</p>)"
         R"(<ul>)"
         R"(<li><b>Download the whole folder</b> - not one file at a time.</li>)"
+        R"(<li>Use <b>7-Zip</b> to extract - grab it free at )"
+        R"(<a href="https://www.7-zip.org/">7-zip.org</a>.</li>)"
         R"(<li>If a game gives you trouble, <b>ask for help first</b> in the )"
         R"(<a href="https://t.me/ARMGDDNGames">Telegram</a> or on Reddit )"
         R"(<b>before</b> deleting the zip files.</li>)"
         R"(<li><b>Don't delete anything</b> until you are sure the game works.</li>)"
         R"(</ul>)"
+        R"(<p>New here? Watch the tutorials:<br>)"
+        R"(&#9654; <a href="https://streamable.com/kg43ii">AG Browser tutorial</a><br>)"
+        R"(&#9654; <a href="https://streamable.com/p0klwi">Multi-piece zip tutorial</a></p>)"
         R"(<p>Downloading a game twice means one more person who can't download )"
         R"(it at all. Thanks for keeping the bandwidth available for everyone. &#10084;</p>)");
     box.setStandardButtons(QMessageBox::Ok);

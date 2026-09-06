@@ -327,6 +327,9 @@
     <addaction name="linkBrowserDownload"/>
     <addaction name="linkBetaSite"/>
     <addaction name="separator"/>
+    <addaction name="linkTutorialBrowser"/>
+    <addaction name="linkTutorialMultiZip"/>
+    <addaction name="separator"/>
     <addaction name="linkTelegram"/>
     <addaction name="linkDMP"/>
     <addaction name="linkOldMan"/>
@@ -351,6 +354,16 @@
   <action name="linkBetaSite">
    <property name="text">
     <string>ARMGDDNBrowser.com (beta)</string>
+   </property>
+  </action>
+  <action name="linkTutorialBrowser">
+   <property name="text">
+    <string>Tutorial: AG Browser</string>
+   </property>
+  </action>
+  <action name="linkTutorialMultiZip">
+   <property name="text">
+    <string>Tutorial: Multi-piece zips</string>
    </property>
   </action>
   <action name="linkTelegram">

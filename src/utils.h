@@ -27,6 +27,12 @@ void SetRclonePassword(const QString &rclonePassword);
 
 QStringList GetDefaultOptionsList(const QString &settingsOptions);
 QStringList GetRemoteModeRcloneOptions();
+
+// CODE field flags (Preferences > General > CODE). Space-separated switches
+// for people who know them. --staff is an umbrella that turns on the staff
+// switches (currently just --dont-nag-me).
+QStringList GetCodeFlags();
+bool HasCodeFlag(const QString &flag);
 QStringList GetShowHidden();
 QStringList GetRcloneCmd(const QStringList &args);
 

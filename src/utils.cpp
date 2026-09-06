@@ -347,6 +347,24 @@ QStringList GetRemoteModeRcloneOptions() {
   return driveSharedOption;
 }
 
+QStringList GetCodeFlags() {
+  auto settings = GetSettings();
+  QStringList flags = settings->value("Settings/code")
+                          .toString()
+                          .split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
+
+  // --staff is an umbrella switch: it turns on the staff-only behaviour, which
+  // right now is just suppressing the bandwidth nag. Expand it here so callers
+  // only have to check for the concrete flag.
+  if (flags.contains("--staff") && !flags.contains("--dont-nag-me")) {
+    flags << "--dont-nag-me";
+  }
+
+  return flags;
+}
+
+bool HasCodeFlag(const QString &flag) { return GetCodeFlags().contains(flag); }
+
 QStringList GetDefaultOptionsList(const QString &settingsOptions) {
   auto settings = GetSettings();
   QString defaultOptions =
@@ -364,6 +382,14 @@ QStringList GetDefaultOptionsList(const QString &settingsOptions) {
         defaultOptionsList << arg.replace("\"", "");
       }
     }
+  }
+
+  // CODE --debug: add rclone verbose logging to every operation that uses the
+  // default rclone options, so staff can see what's happening without a
+  // special build. Applied once, to the base rclone options only.
+  if (settingsOptions == "defaultRcloneOptions" && HasCodeFlag("--debug") &&
+      !defaultOptionsList.contains("-vv")) {
+    defaultOptionsList << "-vv";
   }
 
   return defaultOptionsList;
