@@ -90,6 +90,42 @@ PreferencesDialog::PreferencesDialog(QWidget *parent) : QDialog(parent) {
       settings->value("Settings/defaultRcloneOptions").toString());
   ui.codeField->setText(settings->value("Settings/code").toString());
 
+  // "Clear debug log" only makes sense - and only shows - while --debug is in
+  // the CODE box. React live to what's typed so staff don't have to reopen the
+  // dialog after enabling it.
+  auto updateClearLogVisible = [this]() {
+    const bool debugOn = ui.codeField->text()
+                             .split(QRegularExpression("\\s+"),
+                                    Qt::SkipEmptyParts)
+                             .contains("--debug");
+    ui.clearLogButton->setVisible(debugOn);
+  };
+  updateClearLogVisible();
+  QObject::connect(ui.codeField, &QLineEdit::textChanged, this,
+                   updateClearLogVisible);
+
+  QObject::connect(ui.clearLogButton, &QPushButton::clicked, this, [this]() {
+    const QString logPath = GetConfigDir().absoluteFilePath("ag-debug.log");
+    QFile logFile(logPath);
+    if (!logFile.exists()) {
+      QMessageBox::information(this, "Clear debug log",
+                              "No debug log to clear yet.");
+      return;
+    }
+    // Remove it outright; rclone recreates it on the next operation, so the
+    // log builds up again from a clean slate for the next reproduction.
+    if (logFile.remove()) {
+      QMessageBox::information(this, "Clear debug log",
+                              "Debug log cleared.");
+    } else {
+      QMessageBox::warning(
+          this, "Clear debug log",
+          "Could not clear the debug log:\n" +
+              QDir::toNativeSeparators(logPath) +
+              "\n\nIt may be open in another program.");
+    }
+  });
+
   ui.checkRcloneBrowserUpdates->setChecked(
       settings->value("Settings/checkRcloneBrowserUpdates", true).toBool());
   ui.checkRcloneUpdates->setChecked(
