@@ -112,6 +112,56 @@
             </property>
            </widget>
           </item>
+          <item row="3" column="0">
+           <widget class="QLabel" name="label_code">
+            <property name="text">
+             <string>CODE:</string>
+            </property>
+            <property name="buddy">
+             <cstring>codeField</cstring>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="1" colspan="2">
+           <widget class="QLineEdit" name="codeField">
+            <property name="placeholderText">
+             <string/>
+            </property>
+           </widget>
+          </item>
+          <item row="4" column="1" colspan="2">
+           <layout class="QHBoxLayout" name="codeButtonsLayout">
+            <item>
+             <widget class="QPushButton" name="clearLogButton">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="toolTip">
+               <string>Delete ag-debug.log so the next reproduction starts from a clean log</string>
+              </property>
+              <property name="text">
+               <string>Clear debug log</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <spacer name="codeButtonsSpacer">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>0</width>
+                <height>0</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+           </layout>
+          </item>
          </layout>
         </widget>
        </item>

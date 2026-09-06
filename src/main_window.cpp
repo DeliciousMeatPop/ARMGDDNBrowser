@@ -472,6 +472,7 @@ MainWindow::MainWindow() {
                          dialog.getDefaultDownloadOptions().trimmed());
       settings->setValue("Settings/defaultRcloneOptions",
                          dialog.getDefaultRcloneOptions().trimmed());
+      settings->setValue("Settings/code", dialog.getCode().trimmed());
 
       settings->setValue("Settings/checkRcloneBrowserUpdates",
                          dialog.getCheckRcloneBrowserUpdates());
@@ -563,6 +564,12 @@ MainWindow::MainWindow() {
   });
   QObject::connect(ui.linkBetaSite, &QAction::triggered, this, [=]() {
     QDesktopServices::openUrl(QUrl("https://ARMGDDNBrowser.com"));
+  });
+  QObject::connect(ui.linkTutorialBrowser, &QAction::triggered, this, [=]() {
+    QDesktopServices::openUrl(QUrl("https://streamable.com/kg43ii"));
+  });
+  QObject::connect(ui.linkTutorialMultiZip, &QAction::triggered, this, [=]() {
+    QDesktopServices::openUrl(QUrl("https://streamable.com/p0klwi"));
   });
   QObject::connect(ui.linkTelegram, &QAction::triggered, this, [=]() {
     QDesktopServices::openUrl(QUrl("https://t.me/ARMGDDNGames"));
@@ -831,6 +838,62 @@ MainWindow::MainWindow() {
   // ARMGDDN Browser: the rclone/AG binary is auto-detected from the
   // application folder, so we can go straight to checking its version.
   rcloneGetVersion();
+
+  // ARMGDDN Browser: bandwidth-etiquette reminder. Shown every time the app
+  // opens, unless the user has ticked "Don't show this again today" - in which
+  // case it stays hidden until the next calendar day. Queued via singleShot so
+  // the main window paints first, then the notice appears on top of it.
+  QTimer::singleShot(0, this, [this]() {
+    auto settings = GetSettings();
+
+    // CODE switches (Preferences > General > CODE). --dont-nag-me (or --staff,
+    // which implies it) suppresses this notice permanently.
+    if (HasCodeFlag("--dont-nag-me")) {
+      return;
+    }
+
+    const QString today = QDate::currentDate().toString(Qt::ISODate);
+    if (settings->value("Notice/bandwidthHiddenUntilDate").toString() == today) {
+      return;
+    }
+
+    QMessageBox box(this);
+    box.setWindowTitle("Please read - bandwidth matters");
+    box.setIcon(QMessageBox::Information);
+    box.setTextFormat(Qt::RichText);
+    box.setText(
+        R"(<h3>We pay for the bandwidth &#128184;</h3>)"
+        R"(<p>Downloading the same game over and over <b>won't fix anything</b>, )"
+        R"(and every extra copy is one that someone else now can't grab.</p>)"
+        R"(<ul>)"
+        R"(<li><b>Download the whole folder</b> - not one file at a time.</li>)"
+        R"(<li>Use <b>7-Zip</b> to extract - grab it free at )"
+        R"(<a href="https://www.7-zip.org/">7-zip.org</a>.</li>)"
+        R"(<li>If a game gives you trouble, <b>ask for help first</b> in the )"
+        R"(<a href="https://t.me/ARMGDDNGames">Telegram</a> or on Reddit )"
+        R"(<b>before</b> deleting the zip files.</li>)"
+        R"(<li><b>Don't delete anything</b> until you are sure the game works.</li>)"
+        R"(</ul>)"
+        R"(<p>New here? Watch the tutorials:<br>)"
+        R"(&#9654; <a href="https://streamable.com/kg43ii">AG Browser tutorial</a><br>)"
+        R"(&#9654; <a href="https://streamable.com/p0klwi">Multi-piece zip tutorial</a></p>)"
+        R"(<p>Downloading a game twice means one more person who can't download )"
+        R"(it at all. Thanks for keeping the bandwidth available for everyone. &#10084;</p>)");
+    box.setStandardButtons(QMessageBox::Ok);
+
+    QCheckBox *dontShow = new QCheckBox("Don't show this again today", &box);
+    box.setCheckBox(dontShow);
+
+    box.exec();
+
+    // Remember the choice: if ticked, suppress until tomorrow; otherwise clear
+    // any old suppression so the notice returns on the next launch.
+    if (dontShow->isChecked()) {
+      settings->setValue("Notice/bandwidthHiddenUntilDate", today);
+    } else {
+      settings->remove("Notice/bandwidthHiddenUntilDate");
+    }
+  });
 
   // start minimised to tray
   if ((settings->value("Settings/startMinimisedToTray").toBool())) {

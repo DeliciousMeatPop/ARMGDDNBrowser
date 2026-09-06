@@ -347,6 +347,24 @@ QStringList GetRemoteModeRcloneOptions() {
   return driveSharedOption;
 }
 
+QStringList GetCodeFlags() {
+  auto settings = GetSettings();
+  QStringList flags = settings->value("Settings/code")
+                          .toString()
+                          .split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
+
+  // --staff is an umbrella switch: it turns on the staff-only behaviour, which
+  // right now is just suppressing the bandwidth nag. Expand it here so callers
+  // only have to check for the concrete flag.
+  if (flags.contains("--staff") && !flags.contains("--dont-nag-me")) {
+    flags << "--dont-nag-me";
+  }
+
+  return flags;
+}
+
+bool HasCodeFlag(const QString &flag) { return GetCodeFlags().contains(flag); }
+
 QStringList GetDefaultOptionsList(const QString &settingsOptions) {
   auto settings = GetSettings();
   QString defaultOptions =
@@ -364,6 +382,22 @@ QStringList GetDefaultOptionsList(const QString &settingsOptions) {
         defaultOptionsList << arg.replace("\"", "");
       }
     }
+  }
+
+  // CODE --debug: write rclone's verbose log to ag-debug.log in the app's
+  // writable folder (next to the exe in portable mode), so staff can grab a
+  // log off a user's machine without a special build. Applied once, to the
+  // base rclone options only.
+  if (settingsOptions == "defaultRcloneOptions" && HasCodeFlag("--debug") &&
+      !defaultOptionsList.contains("--log-file")) {
+    QDir logDir = GetConfigDir();
+    // rclone won't create the log file's parent folder, so make sure it exists.
+    if (!logDir.exists()) {
+      logDir.mkpath(".");
+    }
+    const QString logPath =
+        QDir::toNativeSeparators(logDir.absoluteFilePath("ag-debug.log"));
+    defaultOptionsList << "--log-level" << "DEBUG" << "--log-file" << logPath;
   }
 
   return defaultOptionsList;
