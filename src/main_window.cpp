@@ -832,6 +832,31 @@ MainWindow::MainWindow() {
   // application folder, so we can go straight to checking its version.
   rcloneGetVersion();
 
+  // ARMGDDN Browser: bandwidth-etiquette reminder shown every time the app
+  // opens. Queued via singleShot so the main window paints first, then the
+  // notice appears on top of it.
+  QTimer::singleShot(0, this, [this]() {
+    QMessageBox box(this);
+    box.setWindowTitle("Please read - bandwidth matters");
+    box.setIcon(QMessageBox::Information);
+    box.setTextFormat(Qt::RichText);
+    box.setText(
+        R"(<h3>We pay for the bandwidth &#128184;</h3>)"
+        R"(<p>Downloading the same game over and over <b>won't fix anything</b>, )"
+        R"(and every extra copy is one that someone else now can't grab.</p>)"
+        R"(<ul>)"
+        R"(<li><b>Download the whole folder</b> - not one file at a time.</li>)"
+        R"(<li>If a game gives you trouble, <b>ask for help first</b> in the )"
+        R"(<a href="https://t.me/ARMGDDNGames">Telegram</a> or on Reddit )"
+        R"(<b>before</b> deleting the zip files.</li>)"
+        R"(<li><b>Don't delete anything</b> until you are sure the game works.</li>)"
+        R"(</ul>)"
+        R"(<p>Downloading a game twice means one more person who can't download )"
+        R"(it at all. Thanks for keeping the bandwidth available for everyone. &#10084;</p>)");
+    box.setStandardButtons(QMessageBox::Ok);
+    box.exec();
+  });
+
   // start minimised to tray
   if ((settings->value("Settings/startMinimisedToTray").toBool())) {
 #ifdef Q_OS_MACOS
