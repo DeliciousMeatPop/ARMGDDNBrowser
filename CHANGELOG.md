@@ -1,5 +1,12 @@
 # Change Log
 
+## [0.1.0] - 2026-09-06
+-   NEW: startup bandwidth reminder - download whole folders, use 7-Zip, and ask for help before deleting zip files; includes a "Don't show this again today" option
+-   NEW: AG Browser and multi-piece zip video tutorials, linked from the reminder and the Links menu
+-   NEW: 7-Zip download link (7-zip.org) in the reminder
+-   NEW: CODE box in Preferences > General for extra switches
+-   NEW: `--debug` switch writes a full rclone log to `ag-debug.log` in the app folder, with a "Clear debug log" button to reset it before reproducing an issue
+
 ## [2.0.0][2.0.0] - 2020-03-
 -   NEW: interface look and feel redisign - more space, more flexible and dynamic, more information, more cutomizations
 -   NEW: added queueing functionality. Tasks can be queued for later excecution. Queue itself can be rearranged and edidted. It is persistent between application restart. And in addition user defined script can be run when all queued tasks are processed.
