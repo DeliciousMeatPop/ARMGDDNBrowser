@@ -21,7 +21,7 @@ What's New
 ----------
 
 <!-- HIGHLIGHTS:START -->
-_Latest release: **v0.0.8**_
+_Latest release: **v0.1.0**_
 
 - **One-click updates** - Download & Install applies the new version in place (keeping your settings) and relaunches; the popup now shows the changelog.
 - **Steam links** - right-click a game folder for its Steam Store, SteamDB and Patchnotes pages.
