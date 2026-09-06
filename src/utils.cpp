@@ -384,12 +384,20 @@ QStringList GetDefaultOptionsList(const QString &settingsOptions) {
     }
   }
 
-  // CODE --debug: add rclone verbose logging to every operation that uses the
-  // default rclone options, so staff can see what's happening without a
-  // special build. Applied once, to the base rclone options only.
+  // CODE --debug: write rclone's verbose log to ag-debug.log in the app's
+  // writable folder (next to the exe in portable mode), so staff can grab a
+  // log off a user's machine without a special build. Applied once, to the
+  // base rclone options only.
   if (settingsOptions == "defaultRcloneOptions" && HasCodeFlag("--debug") &&
-      !defaultOptionsList.contains("-vv")) {
-    defaultOptionsList << "-vv";
+      !defaultOptionsList.contains("--log-file")) {
+    QDir logDir = GetConfigDir();
+    // rclone won't create the log file's parent folder, so make sure it exists.
+    if (!logDir.exists()) {
+      logDir.mkpath(".");
+    }
+    const QString logPath =
+        QDir::toNativeSeparators(logDir.absoluteFilePath("ag-debug.log"));
+    defaultOptionsList << "--log-level" << "DEBUG" << "--log-file" << logPath;
   }
 
   return defaultOptionsList;
