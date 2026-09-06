@@ -832,10 +832,17 @@ MainWindow::MainWindow() {
   // application folder, so we can go straight to checking its version.
   rcloneGetVersion();
 
-  // ARMGDDN Browser: bandwidth-etiquette reminder shown every time the app
-  // opens. Queued via singleShot so the main window paints first, then the
-  // notice appears on top of it.
+  // ARMGDDN Browser: bandwidth-etiquette reminder. Shown every time the app
+  // opens, unless the user has ticked "Don't show this again today" - in which
+  // case it stays hidden until the next calendar day. Queued via singleShot so
+  // the main window paints first, then the notice appears on top of it.
   QTimer::singleShot(0, this, [this]() {
+    auto settings = GetSettings();
+    const QString today = QDate::currentDate().toString(Qt::ISODate);
+    if (settings->value("Notice/bandwidthHiddenUntilDate").toString() == today) {
+      return;
+    }
+
     QMessageBox box(this);
     box.setWindowTitle("Please read - bandwidth matters");
     box.setIcon(QMessageBox::Information);
@@ -854,7 +861,19 @@ MainWindow::MainWindow() {
         R"(<p>Downloading a game twice means one more person who can't download )"
         R"(it at all. Thanks for keeping the bandwidth available for everyone. &#10084;</p>)");
     box.setStandardButtons(QMessageBox::Ok);
+
+    QCheckBox *dontShow = new QCheckBox("Don't show this again today", &box);
+    box.setCheckBox(dontShow);
+
     box.exec();
+
+    // Remember the choice: if ticked, suppress until tomorrow; otherwise clear
+    // any old suppression so the notice returns on the next launch.
+    if (dontShow->isChecked()) {
+      settings->setValue("Notice/bandwidthHiddenUntilDate", today);
+    } else {
+      settings->remove("Notice/bandwidthHiddenUntilDate");
+    }
   });
 
   // start minimised to tray
