@@ -8,8 +8,7 @@
   section is skipped entirely.
 -->
 
-- **One-click updates** - Download & Install applies the new version in place (keeping your settings) and relaunches; the popup now shows the changelog.
-- **Steam links** - right-click a game folder for its Steam Store, SteamDB and Patchnotes pages.
-- **Faster folder sizes** - sizes are cached on disk and shared across identical mirrors, so browsing is quick after the first look.
-- **Search inside a mirror** - filter game folders by name without freezing the app.
-- **Version shown in the title bar.**
+- **Bandwidth reminder on startup** - a friendly note about downloading whole folders, using 7-Zip, and asking for help before deleting zips. Tick "Don't show this again today" to hide it until tomorrow.
+- **Built-in tutorials** - the AG Browser and multi-piece zip video guides are one click away from the reminder and from the Links menu.
+- **7-Zip tip** - the reminder links straight to 7-zip.org so new users grab the right extractor.
+- **CODE box in Preferences** - a spot for extra switches. `--debug` writes a full `ag-debug.log` next to the app for troubleshooting, with a "Clear debug log" button to start a clean capture.
