@@ -88,6 +88,7 @@ PreferencesDialog::PreferencesDialog(QWidget *parent) : QDialog(parent) {
       settings->value("Settings/defaultDownloadOptions").toString());
   ui.defaultRcloneOptions->setText(
       settings->value("Settings/defaultRcloneOptions").toString());
+  ui.codeField->setText(settings->value("Settings/code").toString());
 
   ui.checkRcloneBrowserUpdates->setChecked(
       settings->value("Settings/checkRcloneBrowserUpdates", true).toBool());
@@ -282,6 +283,8 @@ QString PreferencesDialog::getDefaultDownloadOptions() const {
 QString PreferencesDialog::getDefaultRcloneOptions() const {
   return ui.defaultRcloneOptions->text();
 }
+
+QString PreferencesDialog::getCode() const { return ui.codeField->text(); }
 
 bool PreferencesDialog::getCheckRcloneBrowserUpdates() const {
   return ui.checkRcloneBrowserUpdates->isChecked();

@@ -472,6 +472,7 @@ MainWindow::MainWindow() {
                          dialog.getDefaultDownloadOptions().trimmed());
       settings->setValue("Settings/defaultRcloneOptions",
                          dialog.getDefaultRcloneOptions().trimmed());
+      settings->setValue("Settings/code", dialog.getCode().trimmed());
 
       settings->setValue("Settings/checkRcloneBrowserUpdates",
                          dialog.getCheckRcloneBrowserUpdates());
@@ -838,6 +839,15 @@ MainWindow::MainWindow() {
   // the main window paints first, then the notice appears on top of it.
   QTimer::singleShot(0, this, [this]() {
     auto settings = GetSettings();
+
+    // CODE switches (Preferences > General > CODE). Space-separated flags for
+    // people who know them; --dont-nag-me suppresses this notice permanently.
+    const QString code = settings->value("Settings/code").toString();
+    if (code.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts)
+            .contains("--dont-nag-me")) {
+      return;
+    }
+
     const QString today = QDate::currentDate().toString(Qt::ISODate);
     if (settings->value("Notice/bandwidthHiddenUntilDate").toString() == today) {
       return;

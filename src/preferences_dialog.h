@@ -13,6 +13,7 @@ public:
   QString getDefaultDownloadDir() const;
   QString getDefaultDownloadOptions() const;
   QString getDefaultRcloneOptions() const;
+  QString getCode() const;
 
   bool getCheckRcloneBrowserUpdates() const;
   bool getCheckRcloneUpdates() const;
