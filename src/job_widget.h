@@ -30,6 +30,9 @@ signals:
   // ARMGDDN Browser: emitted once if the output shows a quota / rate-limit error
   void quotaError(const QString &source, const QString &dest,
                   const QStringList &args);
+  // ARMGDDN Browser: emitted when a job exits with an error (not stopped, not a
+  // quota hit) so the main window can show the reason in a popup
+  void jobError(const QString &info, const QString &details);
 
 private:
   Ui::JobWidget ui;
@@ -47,6 +50,9 @@ private:
   QString mSource;
   QString mDest;
   bool mQuotaReported = false;
+  // rclone's own ERROR / CRITICAL / FATAL log lines, kept so a failed job can
+  // show why it failed instead of just a red "Error"
+  QStringList mErrorLines;
   QHash<QString, QLabel *> mActive;
   QSet<QLabel *> mUpdated;
 

@@ -222,6 +222,17 @@ JobWidget::JobWidget(QProcess *process, const QString &info,
       }
       ui.output->appendPlainText(line);
 
+      // ARMGDDN Browser: remember rclone's own error lines so a failed job can
+      // explain itself. rclone upper-cases the log severity (e.g. "CRITICAL:
+      // Can't set -v and --log-level", "ERROR : file: Failed to copy"), which
+      // also keeps this clear of the lower-case "Errors:" stats line. Capped so
+      // a pathological run can't grow this without bound.
+      if (mErrorLines.size() < 50 &&
+          (line.contains("CRITICAL") || line.contains("ERROR") ||
+           line.contains("FATAL"))) {
+        mErrorLines << line;
+      }
+
       // ARMGDDN Browser: detect a quota / rate-limit error so we can offer a
       // different mirror. Reported at most once per job.
       if (!mQuotaReported &&
@@ -400,6 +411,37 @@ JobWidget::JobWidget(QProcess *process, const QString &info,
           } else {
             mJobFinalStatus = "error";
             mStatus = "2_transfer_error";
+
+            // ARMGDDN Browser: make failures self-explanatory. rclone's stderr
+            // is merged into the output pane, but that pane starts collapsed,
+            // so a user otherwise just sees a red "Error" with no reason. Pull
+            // out the actual cause, write it as a summary, auto-open the output
+            // pane so it's visible in the Jobs tab, and - for anything that
+            // isn't the quota case (which has its own retry prompt) - raise a
+            // popup naming the job and the error.
+            QString details;
+            if (!mErrorLines.isEmpty()) {
+              // the last handful of error lines is usually the root cause
+              const int keep = 8;
+              details = mErrorLines.mid(qMax(0, mErrorLines.size() - keep))
+                            .join("\n");
+            } else {
+              details =
+                  QString("rclone exited with code %1 but printed no error "
+                          "message.\nIf the --debug flag is on, check "
+                          "ag-debug.log for details.")
+                      .arg(status);
+            }
+
+            ui.output->appendPlainText("");
+            ui.output->appendPlainText("==== Transfer failed ====");
+            ui.output->appendPlainText(details);
+            ui.showOutput->setChecked(true);
+            ui.showDetails->setToolTip(details);
+
+            if (!mQuotaReported) {
+              emit jobError(ui.info->text(), details);
+            }
           }
 
           ui.progress_info->hide();

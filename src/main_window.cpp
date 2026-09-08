@@ -1737,6 +1737,18 @@ void MainWindow::addTransfer(const QString &message, const QString &source,
   QObject::connect(widget, &JobWidget::quotaError, this,
                    &MainWindow::offerMirrorRetry, Qt::QueuedConnection);
 
+  // ARMGDDN Browser: pop up the reason a transfer failed so it isn't buried in
+  // the collapsed output pane. The job widget already writes the same detail
+  // into its output and auto-expands it, so this popup is a convenience, not
+  // the only place the error appears.
+  QObject::connect(
+      widget, &JobWidget::jobError, this,
+      [this](const QString &info, const QString &details) {
+        QMessageBox::warning(this, "Transfer failed",
+                             info + "\n\n" + details);
+      },
+      Qt::QueuedConnection);
+
   auto line = new QFrame();
   line->setFrameShape(QFrame::HLine);
   line->setFrameShadow(QFrame::Sunken);
