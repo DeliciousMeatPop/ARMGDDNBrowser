@@ -397,7 +397,14 @@ QStringList GetDefaultOptionsList(const QString &settingsOptions) {
     }
     const QString logPath =
         QDir::toNativeSeparators(logDir.absoluteFilePath("ag-debug.log"));
-    defaultOptionsList << "--log-level" << "DEBUG" << "--log-file" << logPath;
+    // Transfer commands always pass --verbose (see JobOptions::getOptions and
+    // the copy/download builders). rclone aborts with "Can't set -v and
+    // --log-level" if --log-level is also present, which silently failed every
+    // download in debug mode. Raise the log level to DEBUG with -vv instead:
+    // repeated verbose flags just bump rclone's log-level counter (capped at
+    // DEBUG), so this stacks harmlessly with any --verbose already on the
+    // command line while still capturing a full DEBUG log to the file.
+    defaultOptionsList << "-vv" << "--log-file" << logPath;
   }
 
   return defaultOptionsList;
