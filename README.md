@@ -21,7 +21,7 @@ What's New
 ----------
 
 <!-- HIGHLIGHTS:START -->
-_Latest release: **v0.1.0**_
+_Latest release: **v0.1.1**_
 
 - **Bandwidth reminder on startup** - a friendly note about downloading whole folders, using 7-Zip, and asking for help before deleting zips. Tick "Don't show this again today" to hide it until tomorrow.
 - **Built-in tutorials** - the AG Browser and multi-piece zip video guides are one click away from the reminder and from the Links menu.
