@@ -1,5 +1,9 @@
 <img src="assets/AG.png" width="140" align="right" alt="ARMGDDN Browser" />
 
+
+**NOTE: This is not a working browser just the fork we use for the working browser.... github.com/deliciousmeatpop/agbrowser is the full deal... do NOT download this direct from the releases its for use with a working browser to autoupdate...**
+
+
 ARMGDDN Browser
 ===============
 
