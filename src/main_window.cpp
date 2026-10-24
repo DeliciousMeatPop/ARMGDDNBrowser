@@ -1170,6 +1170,7 @@ void MainWindow::rcloneGetVersion() {
                   "AG/rclone was not found next to ARMGDDN Browser.\n\nPlease "
                   "make sure AG.exe (or rclone.exe) is in the same folder as "
                   "this application.");
+              showMissingRcloneHelp(this);
             } else {
               QMessageBox::information(this, "Error",
                                        "Cannot check the AG/rclone version.\n\n"
@@ -1317,6 +1318,9 @@ void MainWindow::rcloneGetVersion() {
             "Cannot start AG/rclone\n\n Error: " + errorString +
                 "\n\nPlease make sure AG.exe (or rclone.exe) is in the same "
                 "folder as ARMGDDN Browser.");
+        if (error == QProcess::FailedToStart) {
+          showMissingRcloneHelp(this);
+        }
       });
 
   UseRclonePassword(p);
@@ -1324,6 +1328,83 @@ void MainWindow::rcloneGetVersion() {
            QStringList() << "version"
                          << "--ask-password=false",
            QIODevice::ReadOnly);
+}
+
+
+// ARMGDDN Browser: extra guidance popups ------------------------------------
+
+// Shown after the "rclone not found" error. Once per run is enough.
+static void showMissingRcloneHelp(QWidget *parent) {
+  static bool shown = false;
+  if (shown) {
+    return;
+  }
+  shown = true;
+
+  QMessageBox box(parent);
+  box.setWindowTitle("Missing AG/rclone");
+  box.setIcon(QMessageBox::Question);
+  box.setTextFormat(Qt::RichText);
+  box.setTextInteractionFlags(Qt::TextBrowserInteraction);
+  box.setText(
+      R"(<h3>Did you download this off the ARMGDDNBrowser repo on GitHub?</h3>)"
+      R"(<p>If you did, it's not meant to be downloaded this way. )"
+      R"(<a href="https://github.com/DeliciousMeatPop/ARMGDDNBrowser">ARMGDDNBrowser</a> )"
+      R"(is a repo that exists to update the browser for the )"
+      R"(<a href="https://github.com/DeliciousMeatPop/AGBrowser">AGBrowser</a> repo only.</p>)"
+      R"(<p>Otherwise, if you downloaded and set it up from the correct repo )"
+      R"((<a href="https://github.com/DeliciousMeatPop/AGBrowser">AGBrowser</a>), )"
+      R"(your antivirus may have eaten the custom rclone exe.</p>)");
+  box.setStandardButtons(QMessageBox::Ok);
+  box.exec();
+}
+
+// Shown when the placeholder ("fake") config is loaded instead of a real one.
+static void showFakeConfigHelp(QWidget *parent, const QStringList &names) {
+  static bool shown = false;
+  if (shown) {
+    return;
+  }
+  shown = true;
+
+  QMessageBox first(parent);
+  first.setWindowTitle("Placeholder config loaded");
+  first.setIcon(QMessageBox::Warning);
+  first.setTextFormat(Qt::RichText);
+  first.setTextInteractionFlags(Qt::TextBrowserInteraction);
+  first.setText(
+      R"(<h3>This isn't the real mirror list</h3>)"
+      R"(<p>The config that was loaded is a placeholder, so the mirrors )"
+      R"(listed here are not real download mirrors.</p>)"
+      R"(<p>Working browser: )"
+      R"(<a href="https://github.com/DeliciousMeatPop/AGBrowser">AGBrowser</a><br>)"
+      R"(Beta site: <a href="https://ARMGDDNBrowser.com">ARMGDDNBrowser.com</a></p>)");
+  first.setStandardButtons(QMessageBox::Ok);
+  first.exec();
+
+  const QStringList expected = {"Beta Site Test Today", "Come Check it Out",
+                                "ARMGDDNBrowser DOT com"};
+  QStringList sorted = names;
+  sorted.sort();
+  QStringList expectedSorted = expected;
+  expectedSorted.sort();
+  if (sorted != expectedSorted) {
+    return;
+  }
+
+  QMessageBox beta(parent);
+  beta.setWindowTitle("Beta site test");
+  beta.setIcon(QMessageBox::Information);
+  beta.setTextFormat(Qt::RichText);
+  beta.setTextInteractionFlags(Qt::TextBrowserInteraction);
+  beta.setText(
+      R"(<h3>No, you haven't done anything wrong</h3>)"
+      R"(<p>We are currently doing a beta site test, we have <b>PURPOSELY</b> )"
+      R"(shut this browser down.</p>)"
+      R"(<p>Use <a href="https://ARMGDDNBrowser.com">ARMGDDNBrowser.com</a>.</p>)"
+      R"(<p>This may be permanent depending on how good the test goes.</p>)");
+  beta.setStandardButtons(QMessageBox::Ok);
+  beta.exec();
 }
 
 void MainWindow::rcloneListRemotes() {
@@ -1358,6 +1439,7 @@ void MainWindow::rcloneListRemotes() {
           QString iconsColour =
               settings->value("Settings/iconsColour").toString();
 
+          QStringList remoteNames;
           for (const QString &line : items) {
             if (line.isEmpty()) {
               continue;
@@ -1371,6 +1453,7 @@ void MainWindow::rcloneListRemotes() {
             QString name = parts[0].trimmed();
             QString type = parts[1].trimmed();
             QString tooltip = "type: " + type + "\n\nname: " + name;
+            remoteNames << name;
 
             QString img_add = "";
             int size;
@@ -1513,6 +1596,16 @@ void MainWindow::rcloneListRemotes() {
           // ARMGDDN Browser: group remotes into ini-defined folders
           QString folderImgAdd = (iconsColour == "white") ? "_inv" : "";
           groupRemotesIntoFolders(ui.remotes, folderImgAdd);
+
+          // ARMGDDN Browser: placeholder config detection (3 known mirrors)
+          if (remoteNames.count() == 3 &&
+              remoteNames.contains("Beta Site Test Today") &&
+              remoteNames.contains("Come Check it Out") &&
+              remoteNames.contains("ARMGDDNBrowser DOT com")) {
+            QTimer::singleShot(0, this, [=]() {
+              showFakeConfigHelp(this, remoteNames);
+            });
+          }
         } else {
           if (p->error() != QProcess::FailedToStart) {
             if (getConfigPassword(p)) {
@@ -1534,6 +1627,9 @@ void MainWindow::rcloneListRemotes() {
             "Cannot start AG/rclone\n\n Error: " + errorString +
                 "\n\nPlease make sure AG.exe (or rclone.exe) is in the same "
                 "folder as ARMGDDN Browser.");
+        if (error == QProcess::FailedToStart) {
+          showMissingRcloneHelp(this);
+        }
       });
 
   UseRclonePassword(p);
