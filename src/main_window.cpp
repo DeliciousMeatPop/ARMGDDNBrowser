@@ -14,6 +14,10 @@
 #endif
 #include "file_dialog.h"
 
+// ARMGDDN Browser: guidance popups (defined below, before rcloneListRemotes)
+static void showMissingRcloneHelp(QWidget *parent);
+static void showFakeConfigHelp(QWidget *parent, const QStringList &names);
+
 namespace {
 // ARMGDDN Browser: remote-folder grouping.
 //
