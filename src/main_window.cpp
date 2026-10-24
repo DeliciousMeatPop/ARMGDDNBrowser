@@ -1380,9 +1380,7 @@ static void showFakeConfigHelp(QWidget *parent, const QStringList &names) {
       R"(<h3>This isn't the real mirror list</h3>)"
       R"(<p>The config that was loaded is a placeholder, so the mirrors )"
       R"(listed here are not real download mirrors.</p>)"
-      R"(<p>Working browser: )"
-      R"(<a href="https://github.com/DeliciousMeatPop/AGBrowser">AGBrowser</a><br>)"
-      R"(Beta site: <a href="https://ARMGDDNBrowser.com">ARMGDDNBrowser.com</a></p>)");
+      R"(<p>Beta site: <a href="https://ARMGDDNBrowser.com">ARMGDDNBrowser.com</a></p>)");
   first.setStandardButtons(QMessageBox::Ok);
   first.exec();
 
