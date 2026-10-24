@@ -38,7 +38,7 @@ _Latest release: **v0.1.1**_
 Links
 -----
 
-* **Download:** https://github.com/DeliciousMeatPop/ARMGDDNBrowser
+* **Download:** https://github.com/DeliciousMeatPop/AGBrowser (working browser here, this repo you are on is just the source for auto-updates)
 * **Beta site:** https://ARMGDDNBrowser.com
 * **ARMGDDN Games Telegram:** https://t.me/ARMGDDNGames
 * **DMP:** https://t.me/SickSoThr33 · **Old Man:** https://t.me/George_jefferson
