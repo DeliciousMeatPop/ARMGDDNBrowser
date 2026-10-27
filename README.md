@@ -1,4 +1,8 @@
-<img src="assets/AG.png" width="140" align="right" alt="ARMGDDN Browser" />
+# We use a website now, ARMGDDNBrowser.com
+**you need to be in our telegram chat or you wont be able to use it t.me/ARMGDDNGames**
+
+<details>
+<summary>Info is outdated, keeping for posterity only (this is a SPOILER CLICK TO EXPAND!)</summary><img src="assets/AG.png" width="140" align="right" alt="ARMGDDN Browser" />
 
 
 ---
@@ -147,3 +151,4 @@ ARMGDDN Browser is released under the MIT License (see [LICENSE](LICENSE)).
 
 It builds on the work of the Rclone Browser authors — kapitainsky and
 Martins Mozeiko — and, of course, [rclone](https://rclone.org/) itself.
+</details><div align="center">
